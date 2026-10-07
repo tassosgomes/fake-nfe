@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
 
 export function newId(prefix = ""): string {
   const body = randomBytes(16).toString("hex");

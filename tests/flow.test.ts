@@ -21,6 +21,7 @@ import { GET as status } from "../app/api/v1/invoices/[id]/status/route";
 import { GET as pdf } from "../app/api/v1/invoices/[id]/pdf/route";
 import { GET as xml } from "../app/api/v1/invoices/[id]/xml/route";
 
+process.env.DISABLE_SWEEPER = "1";
 process.env.DATABASE_PATH = path.join(mkdtempSync(path.join(tmpdir(), "bancada-")), "estudo.sqlite");
 
 const CNPJ = "11222333000181";

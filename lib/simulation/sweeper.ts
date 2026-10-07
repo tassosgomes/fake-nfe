@@ -13,6 +13,7 @@ export async function runTick(now = Date.now()): Promise<void> {
 }
 
 export function startSweeper(): void {
+  if (process.env.DISABLE_SWEEPER === "1") return;
   if (globalState.__estudoSweeper) return;
   globalState.__estudoSweeper = setInterval(() => {
     void runTick().catch((error) => {

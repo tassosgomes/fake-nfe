@@ -7,6 +7,7 @@ import { newId } from "../ids";
 import { STUDY_AVISO } from "../plan";
 import { findKey, touchKey } from "../services/keys";
 import { countRecent, writeLog } from "../services/logs";
+import { startSweeper } from "../simulation/sweeper";
 
 export function studyJson(data: unknown, status = 200, extra?: HeadersInit): Response {
   const headers = new Headers(extra);
@@ -131,6 +132,7 @@ async function run<T extends ProjectAuth | OrgAuth>(
 ): Promise<Response> {
   const started = Date.now();
   let auth: T | null = null;
+  startSweeper();
   try {
     auth = authorize();
     const limited = enforceRate(auth, req, started);

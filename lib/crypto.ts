@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 export function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
