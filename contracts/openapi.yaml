@@ -1,0 +1,2630 @@
+openapi: 3.1.0
+info:
+  title: Bancada NFS-e API
+  version: 1.0.0
+  summary: API de estudo do ciclo de vida de uma NFS-e simulada.
+  description: |
+    Laboratório para estudar emissão, consulta, documentos, cancelamento e webhooks de uma NFS-e.
+
+    **Nada aqui tem valor fiscal.** A bancada não fala com SEFAZ, prefeitura nem provedor fiscal.
+    Toda resposta leva `X-Ambiente: estudo` e `X-Aviso: sem-valor-fiscal`.
+
+    ## Autenticação
+    O header `x-api-key` aceita dois tipos de credencial:
+
+    - **Chave de projeto** (`ntaas_…`): emissão, consulta, documentos, cancelamento e webhooks.
+    - **Token de organização** (`ntaas_org_…`): empresas, numeração, chaves, certificado, logo e configurações.
+
+    ## Erros
+    Toda falha responde `application/problem+json` (RFC 9457). O membro `code` é estável e serve para
+    decidir o que fazer; `campo` aponta o campo do corpo em erros de validação.
+
+    ## Correlation ID
+    Envie `X-Correlation-Id` para rastrear a chamada. Sem ele, ou com valor fora do padrão, a bancada gera um UUID.
+    O valor volta no header de toda resposta e no corpo dos erros.
+
+    ## Fila simulada
+    Emissão e cancelamento respondem `202` e seguem numa fila com atraso e chance de falha configuráveis.
+    Para um resultado previsível, force o cenário com `simulacao` no corpo ou com o header `X-Simulacao`.
+  contact:
+    name: Tasso Gomes
+    url: https://github.com/tassosgomes/fake-nfe
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Bancada local (`npm run dev` ou `npm start`)
+tags:
+  - name: Saúde
+    description: Verificação de disponibilidade, sem autenticação.
+  - name: Notas
+    description: Ciclo de vida da NFS-e de estudo. Superfície pública para integradores (chave de projeto).
+  - name: Webhooks
+    description: Cadastro de endpoints e histórico de entregas. Superfície pública para integradores (chave de projeto).
+  - name: Administração
+    description: Gestão da organização, empresas e chaves. Superfície interna (token de organização).
+security:
+  - chaveProjeto: []
+
+paths:
+  /health:
+    get:
+      operationId: verificarSaude
+      tags: [Saúde]
+      summary: Verificar a saúde da bancada
+      description: Responde `200` quando o banco de estudo responde. Não pede chave e não conta no rate limit.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Bancada disponível.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Saude'
+        '503':
+          $ref: '#/components/responses/ServicoIndisponivel'
+
+  /emitir:
+    post:
+      operationId: emitirNfse
+      tags: [Notas]
+      summary: Emitir uma NFS-e de estudo
+      description: |
+        Coloca a nota na fila simulada e responde `202` com `invoiceId`. A nota nasce `queued` e **não está autorizada**
+        nesta resposta: consulte `GET /invoices/{id}/status` até `issued` ou `error`.
+
+        O tomador precisa de CNPJ, CPF ou NIF. CNPJ e CPF passam pela validação dos dígitos.
+        Campos adicionais em `tomador`, `servico` e `valores` (exportação, obra, IBS/CBS…) são guardados e reaparecem no XML.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Simulacao'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmissaoRequest'
+            examples:
+              sucessoImediato:
+                summary: Emissão com sucesso forçado e sem atraso
+                value:
+                  tomador:
+                    nome: Cliente Exemplo LTDA
+                    cnpj: '19131243000197'
+                    email: financeiro@cliente.test
+                  servico:
+                    descricao: Aula de integração fiscal
+                    codigo: '010700'
+                  valores:
+                    total: 1500
+                    aliquotaIss: 2
+                  competencia: 2026-03
+                  referencia: OS-1
+                  simulacao:
+                    resultado: sucesso
+                    atrasoMs: 0
+              rejeicao:
+                summary: Rejeição municipal forçada
+                value:
+                  tomador:
+                    nome: Cliente Exemplo LTDA
+                    cnpj: '19131243000197'
+                  servico:
+                    descricao: Aula de integração fiscal
+                  valores:
+                    total: 1500
+                    aliquotaIss: 2
+                  simulacao:
+                    resultado: rejeicao
+                    atrasoMs: 0
+      responses:
+        '202':
+          description: Nota aceita na fila simulada. Um replay idempotente devolve a mesma resposta com `Idempotent-Replayed`.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+            Idempotent-Replayed:
+              $ref: '#/components/headers/Idempotent-Replayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmissaoAceita'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          description: Chave sem permissão ou cota do plano de estudo esgotada (`cota_esgotada`).
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+              example:
+                type: urn:bancada-nfse:problema:cota_esgotada
+                title: Acesso negado
+                status: 403
+                detail: A cota de notas do plano de estudo acabou.
+                instance: /api/v1/emitir
+                code: cota_esgotada
+                campo: null
+                correlationId: 3f2a9d4e-6b1c-4f0e-9a52-7c1d2e3f4a5b
+                aviso: Ambiente de estudo. Nenhum documento foi transmitido à SEFAZ ou a uma prefeitura. Sem valor fiscal.
+        '409':
+          $ref: '#/components/responses/ConflitoIdempotencia'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocio'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /invoices/{id}/status:
+    get:
+      operationId: consultarNfse
+      tags: [Notas]
+      summary: Consultar o estado de uma NFS-e
+      description: Estados possíveis — `queued`, `processing`, `issued`, `error`, `cancel_queued`, `cancelled`.
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Estado atual da nota.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Nota'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /invoices/{id}/xml:
+    get:
+      operationId: baixarXmlNfse
+      tags: [Notas]
+      summary: Baixar o XML de estudo
+      description: |
+        Disponível com a nota `issued` ou `cancelled`. Com `type=cancel`, devolve o XML do cancelamento, que só existe
+        para nota `cancelled`. A raiz é `NfseEstudo`, sem o leiaute oficial.
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: type
+          in: query
+          required: false
+          description: Qual XML baixar. Qualquer valor diferente de `cancel` devolve o XML da emissão.
+          schema:
+            type: string
+            enum: [emission, cancel]
+            default: emission
+      responses:
+        '200':
+          description: XML de estudo, como anexo.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+            Content-Disposition:
+              $ref: '#/components/headers/Content-Disposition'
+          content:
+            application/xml:
+              schema:
+                type: string
+              example: <NfseEstudo><Aviso>Sem valor fiscal</Aviso></NfseEstudo>
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          $ref: '#/components/responses/DocumentoIndisponivel'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /invoices/{id}/pdf:
+    get:
+      operationId: baixarPdfNfse
+      tags: [Notas]
+      summary: Baixar o PDF de estudo
+      description: Disponível com a nota `issued` ou `cancelled`. O PDF traz a faixa "sem valor fiscal".
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: PDF de estudo, exibido inline.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+            Content-Disposition:
+              $ref: '#/components/headers/Content-Disposition'
+          content:
+            application/pdf:
+              schema:
+                type: string
+                contentMediaType: application/pdf
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          $ref: '#/components/responses/DocumentoIndisponivel'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /cancelar:
+    post:
+      operationId: cancelarNfse
+      tags: [Notas]
+      summary: Pedir o cancelamento de uma NFS-e
+      description: |
+        Só uma nota `issued` entra na fila de cancelamento. Se a prefeitura simulada recusa, a nota volta para `issued`
+        e o status mostra `cancelamentoRecusado`.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Simulacao'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelamentoRequest'
+            example:
+              invoiceId: inv_2f6c1b0e9a4d4c7f8e3a1b2c3d4e5f60
+              motivo: Serviço prestado em duplicidade na mesma competência
+              simulacao:
+                resultado: sucesso
+                atrasoMs: 0
+      responses:
+        '202':
+          description: Cancelamento aceito na fila simulada.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+            Idempotent-Replayed:
+              $ref: '#/components/headers/Idempotent-Replayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelamentoAceito'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ConflitoIdempotencia'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocio'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /webhooks/endpoints:
+    get:
+      operationId: listarWebhooks
+      tags: [Webhooks]
+      summary: Listar endpoints de webhook do projeto
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Endpoints cadastrados, do mais recente para o mais antigo.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaWebhooks'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    post:
+      operationId: criarWebhook
+      tags: [Webhooks]
+      summary: Cadastrar um endpoint de webhook
+      description: |
+        `http://localhost` e `http://127.0.0.1` são aceitos de propósito, para o estudo rodar na mesma máquina.
+        O segredo é devolvido só nesta resposta.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEndpointRequest'
+            example:
+              url: http://127.0.0.1:4000/hook
+              events: [nfse.issued, nfse.error, nfse.cancelled, nfse.documents_ready]
+              secret: segredo-de-estudo
+      responses:
+        '201':
+          description: Endpoint criado.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpointCriado'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /webhooks/endpoints/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do endpoint (`wh_…`).
+        schema:
+          type: string
+          pattern: ^wh_
+    patch:
+      operationId: atualizarWebhook
+      tags: [Webhooks]
+      summary: Atualizar um endpoint de webhook
+      description: Atualiza só os campos enviados. `secret` com `null` ou `""` remove o segredo.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEndpointPatch'
+            example:
+              active: false
+      responses:
+        '200':
+          description: Endpoint atualizado.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpoint'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    delete:
+      operationId: removerWebhook
+      tags: [Webhooks]
+      summary: Remover um endpoint de webhook
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Endpoint removido.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookRemovido'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /webhooks/endpoints/{id}/test:
+    post:
+      operationId: testarWebhook
+      tags: [Webhooks]
+      summary: Enfileirar um evento de teste
+      description: 'Enfileira um `nfse.issued` marcado com `"teste": true`. O endpoint precisa assinar `nfse.issued`.'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador do endpoint (`wh_…`).
+          schema:
+            type: string
+            pattern: ^wh_
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '202':
+          description: Entrega de teste enfileirada.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntregaTesteEnfileirada'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocio'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /webhooks/deliveries:
+    get:
+      operationId: listarEntregasWebhook
+      tags: [Webhooks]
+      summary: Listar o histórico de entregas
+      description: Inclui entregas pendentes, bem-sucedidas e falhas, da mais recente para a mais antiga.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: limit
+          in: query
+          required: false
+          description: Quantidade máxima de entregas.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Histórico de entregas.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaEntregasWebhook'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /org/projects:
+    get:
+      operationId: listarEmpresas
+      tags: [Administração]
+      summary: Listar empresas da organização
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: active
+          in: query
+          required: false
+          description: '`false` ou `all` incluem empresas desativadas. Sem o parâmetro, só as ativas.'
+          schema:
+            type: string
+            enum: ['true', 'false', all]
+        - name: page
+          in: query
+          required: false
+          description: Página, a partir de 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Itens por página.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Página de empresas.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaEmpresas'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    post:
+      operationId: criarEmpresa
+      tags: [Administração]
+      summary: Cadastrar uma empresa prestadora
+      description: O CNPJ é validado pelos dígitos e não pode repetir entre empresas ativas. O plano de estudo aceita 5 empresas ativas.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmpresaRequest'
+            example:
+              name: Filial Centro
+              cnpj: '11222333000181'
+              razaoSocial: Filial de Estudo LTDA
+              codigoMunicipio: '3550308'
+              serieNfse: '1'
+      responses:
+        '201':
+          description: Empresa criada.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Empresa'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          description: Token sem permissão ou limite de empresas do plano atingido (`limite_de_empresas`).
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '409':
+          description: CNPJ já ativo na organização (`cnpj_duplicado`).
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /org/projects/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: obterEmpresa
+      tags: [Administração]
+      summary: Obter uma empresa
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Empresa.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Empresa'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    patch:
+      operationId: atualizarEmpresa
+      tags: [Administração]
+      summary: Atualizar uma empresa
+      description: Atualiza só os campos enviados. O CNPJ não pode ser alterado.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmpresaPatch'
+            example:
+              email: fiscal@filial.test
+      responses:
+        '200':
+          description: Empresa atualizada.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmpresaAtualizada'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    delete:
+      operationId: desativarEmpresa
+      tags: [Administração]
+      summary: Desativar uma empresa
+      description: Desativa a empresa, revoga as chaves dela e preserva as notas.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '204':
+          description: Empresa desativada.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /org/projects/{id}/numeracao:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: obterNumeracao
+      tags: [Administração]
+      summary: Obter a numeração da NFS-e
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Último e próximo número.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Numeracao'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    patch:
+      operationId: atualizarNumeracao
+      tags: [Administração]
+      summary: Avançar a numeração da NFS-e
+      description: A numeração nunca diminui. Um número menor que o atual é ignorado.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NumeracaoPatch'
+      responses:
+        '200':
+          description: Numeração depois da atualização.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Numeracao'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /org/projects/{id}/api-keys:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: listarChavesProjeto
+      tags: [Administração]
+      summary: Listar chaves de projeto
+      description: Mostra só o prefixo das chaves.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Chaves da empresa.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaChaves'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    post:
+      operationId: criarChaveProjeto
+      tags: [Administração]
+      summary: Criar uma chave de projeto
+      description: A chave completa aparece **uma única vez**, nesta resposta.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChaveRequest'
+      responses:
+        '201':
+          description: Chave criada.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaveCriada'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /org/projects/{id}/api-keys/{keyId}:
+    delete:
+      operationId: revogarChaveProjeto
+      tags: [Administração]
+      summary: Revogar uma chave de projeto
+      description: A chave para de funcionar na hora e passa a receber `403 chave_revogada`.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: keyId
+          in: path
+          required: true
+          description: Identificador da chave (`key_…`).
+          schema:
+            type: string
+            pattern: ^key_
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Chave revogada.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaveRevogada'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /org/projects/{id}/certificate:
+    post:
+      operationId: enviarCertificado
+      tags: [Administração]
+      summary: Enviar o certificado A1 de estudo
+      description: |
+        Exige arquivo e senha, como um gateway real, mas a bancada **descarta a senha, não abre o arquivo e não assina nada**.
+        Só o nome do arquivo é guardado.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CertificadoUpload'
+      responses:
+        '201':
+          description: Metadado do certificado registrado.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificadoRegistrado'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '413':
+          $ref: '#/components/responses/ConteudoGrande'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /org/projects/{id}/logo:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      operationId: enviarLogo
+      tags: [Administração]
+      summary: Enviar a logo da empresa
+      description: A logo aparece só no PDF de estudo. Aceita PNG, JPEG ou WebP de até 500 KB.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoUpload'
+      responses:
+        '201':
+          description: Logo armazenada.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoSalva'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '413':
+          $ref: '#/components/responses/ConteudoGrande'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    delete:
+      operationId: removerLogo
+      tags: [Administração]
+      summary: Remover a logo da empresa
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Logo removida.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoRemovida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /org/settings:
+    get:
+      operationId: obterConfiguracoes
+      tags: [Administração]
+      summary: Obter plano, cota e simulação da organização
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Configurações da organização.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Configuracoes'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    patch:
+      operationId: atualizarDominioArquivos
+      tags: [Administração]
+      summary: Configurar o domínio de arquivos
+      description: |
+        Grava um domínio `https` para os arquivos de estudo. Nenhum DNS é consultado.
+        Com `simularVerificacao: true`, o status muda direto para `verified`.
+      security:
+        - tokenOrganizacao: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DominioArquivosRequest'
+      responses:
+        '200':
+          description: Domínio gravado.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/X-Correlation-Id'
+            X-Ambiente:
+              $ref: '#/components/headers/X-Ambiente'
+            X-Aviso:
+              $ref: '#/components/headers/X-Aviso'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DominioArquivos'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocio'
+        '429':
+          $ref: '#/components/responses/LimiteDeRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+webhooks:
+  nfseIssued:
+    post:
+      operationId: receberNfseEmitida
+      tags: [Webhooks]
+      summary: Evento nfse.issued
+      description: A nota simulada foi emitida.
+      parameters:
+        - $ref: '#/components/parameters/WebhookEvento'
+        - $ref: '#/components/parameters/WebhookEntrega'
+        - $ref: '#/components/parameters/WebhookAssinatura'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoNfseEmitida'
+      responses:
+        '200':
+          $ref: '#/components/responses/WebhookRecebido'
+  nfseDocumentsReady:
+    post:
+      operationId: receberDocumentosProntos
+      tags: [Webhooks]
+      summary: Evento nfse.documents_ready
+      description: PDF e XML de estudo disponíveis.
+      parameters:
+        - $ref: '#/components/parameters/WebhookEvento'
+        - $ref: '#/components/parameters/WebhookEntrega'
+        - $ref: '#/components/parameters/WebhookAssinatura'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoDocumentosProntos'
+      responses:
+        '200':
+          $ref: '#/components/responses/WebhookRecebido'
+  nfseError:
+    post:
+      operationId: receberErroNfse
+      tags: [Webhooks]
+      summary: Evento nfse.error
+      description: Rejeição, timeout, indisponibilidade ou cota esgotada.
+      parameters:
+        - $ref: '#/components/parameters/WebhookEvento'
+        - $ref: '#/components/parameters/WebhookEntrega'
+        - $ref: '#/components/parameters/WebhookAssinatura'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoNfseErro'
+      responses:
+        '200':
+          $ref: '#/components/responses/WebhookRecebido'
+  nfseCancelled:
+    post:
+      operationId: receberNfseCancelada
+      tags: [Webhooks]
+      summary: Evento nfse.cancelled
+      description: O cancelamento foi aceito pela prefeitura simulada.
+      parameters:
+        - $ref: '#/components/parameters/WebhookEvento'
+        - $ref: '#/components/parameters/WebhookEntrega'
+        - $ref: '#/components/parameters/WebhookAssinatura'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoNfseCancelada'
+      responses:
+        '200':
+          $ref: '#/components/responses/WebhookRecebido'
+
+components:
+  securitySchemes:
+    chaveProjeto:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Chave de projeto, prefixo `ntaas_`. Escopos `emit`, `cancel`, `query` e `webhooks`.
+    tokenOrganizacao:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        Token de organização, prefixo `ntaas_org_`. Escopos `projects:read`, `projects:write`, `api_keys:manage`,
+        `settings:read`, `settings:write` e `certificates:write`. Criado só pelo painel.
+
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9._:-]{1,128}$
+        examples: [aula-123]
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Mesma chave e mesmo corpo devolvem a primeira resposta. Mesma chave com outro corpo devolve `409 idempotency_conflito`.
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9_-]{1,80}$
+        examples: [emissao-os-1]
+    Simulacao:
+      name: X-Simulacao
+      in: header
+      required: false
+      description: |
+        Força o cenário da fila, como `resultado:atrasoMs` (ex. `timeout:1500`) ou JSON. O campo `simulacao` do corpo vence este header.
+      schema:
+        type: string
+        examples: ['sucesso:0']
+    InvoiceId:
+      name: id
+      in: path
+      required: true
+      description: Identificador da nota (`inv_…`), devolvido pela emissão.
+      schema:
+        type: string
+        pattern: ^inv_
+        examples: [inv_2f6c1b0e9a4d4c7f8e3a1b2c3d4e5f60]
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      description: Identificador da empresa (`prj_…`).
+      schema:
+        type: string
+        pattern: ^prj_
+        examples: [prj_9a8b7c6d5e4f40312a1b2c3d4e5f6071]
+    WebhookEvento:
+      name: X-Notaas-Event
+      in: header
+      required: true
+      description: Nome do evento.
+      schema:
+        $ref: '#/components/schemas/NomeEvento'
+    WebhookEntrega:
+      name: X-Notaas-Delivery
+      in: header
+      required: true
+      description: Identificador da entrega (`del_…`). Igual em todas as retentativas.
+      schema:
+        type: string
+        pattern: ^del_
+    WebhookAssinatura:
+      name: X-Notaas-Signature
+      in: header
+      required: false
+      description: |
+        `sha256=` seguido do HMAC-SHA256 em hexadecimal do corpo cru, com o segredo do endpoint. Ausente quando o endpoint não tem segredo.
+      schema:
+        type: string
+        pattern: ^sha256=[0-9a-f]{64}$
+
+  headers:
+    X-Correlation-Id:
+      description: Correlation ID recebido ou gerado pela bancada.
+      schema:
+        type: string
+    X-Ambiente:
+      description: Sempre `estudo`.
+      schema:
+        type: string
+        const: estudo
+    X-Aviso:
+      description: Sempre `sem-valor-fiscal`.
+      schema:
+        type: string
+        const: sem-valor-fiscal
+    Idempotent-Replayed:
+      description: '`true` quando a resposta é o replay de uma requisição idempotente.'
+      schema:
+        type: string
+        const: 'true'
+    Content-Disposition:
+      description: Nome do arquivo de estudo.
+      schema:
+        type: string
+        examples: ['attachment; filename="nfse-estudo-000001.xml"']
+    Retry-After:
+      description: Segundos até a janela do rate limit abrir de novo.
+      schema:
+        type: integer
+        examples: [60]
+
+  responses:
+    RequisicaoInvalida:
+      description: Corpo, JSON, header ou parâmetro inválido (`payload_invalido`, `json_invalido`, `simulacao_invalida`, `idempotency_invalida`…).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: urn:bancada-nfse:problema:payload_invalido
+            title: Requisição inválida
+            status: 400
+            detail: Informe CNPJ, CPF ou NIF do tomador
+            instance: /api/v1/emitir
+            code: payload_invalido
+            campo: tomador.cnpj
+            correlationId: aula-123
+            aviso: Ambiente de estudo. Nenhum documento foi transmitido à SEFAZ ou a uma prefeitura. Sem valor fiscal.
+    NaoAutenticado:
+      description: Header `x-api-key` ausente ou chave desconhecida (`nao_autorizado`).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: urn:bancada-nfse:problema:nao_autorizado
+            title: Não autenticado
+            status: 401
+            detail: Informe o header x-api-key.
+            instance: /api/v1/emitir
+            code: nao_autorizado
+            campo: null
+            correlationId: aula-123
+            aviso: Ambiente de estudo. Nenhum documento foi transmitido à SEFAZ ou a uma prefeitura. Sem valor fiscal.
+    AcessoNegado:
+      description: Tipo de chave errado, chave revogada ou sem escopo (`tipo_de_chave`, `chave_revogada`, `escopo`).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: urn:bancada-nfse:problema:tipo_de_chave
+            title: Acesso negado
+            status: 403
+            detail: Esta rota aceita token de organização (prefixo ntaas_org_).
+            instance: /api/v1/org/projects
+            code: tipo_de_chave
+            campo: null
+            correlationId: aula-123
+            aviso: Ambiente de estudo. Nenhum documento foi transmitido à SEFAZ ou a uma prefeitura. Sem valor fiscal.
+    NaoEncontrado:
+      description: Recurso inexistente ou de outro projeto/organização (`nao_encontrado`).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+    ConflitoIdempotencia:
+      description: '`Idempotency-Key` já usada com outro pedido (`idempotency_conflito`).'
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+    DocumentoIndisponivel:
+      description: O documento ainda não existe para o estado atual da nota (`documento_indisponivel`).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+    RegraDeNegocio:
+      description: A operação não vale para o estado atual (`empresa_inativa`, `status_invalido`, `motivo_invalido`, `evento_ausente`, `sem_dominio`).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+    ConteudoGrande:
+      description: Arquivo acima do limite (`arquivo_grande`, `logo_grande`).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+    LimiteDeRequisicoes:
+      description: Teto de requisições por minuto da chave atingido (`rate_limit`).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+    ErroInterno:
+      description: Falha inesperada da bancada (`erro_interno`).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+    ServicoIndisponivel:
+      description: Banco de estudo indisponível (`banco_indisponivel`).
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/X-Correlation-Id'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+    WebhookRecebido:
+      description: Qualquer `2xx` confirma a entrega. Fora de `2xx`, a bancada tenta de novo (padrão 10 s, 30 s e 60 s).
+
+  schemas:
+    Problema:
+      type: object
+      description: Problem Details (RFC 9457) com membros de extensão da bancada.
+      required: [type, title, status, detail, instance, code, campo, correlationId, aviso]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: '`urn:bancada-nfse:problema:<code>`.'
+          examples: [urn:bancada-nfse:problema:nao_encontrado]
+        title:
+          type: string
+          description: Resumo do status HTTP.
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+          description: Explicação para quem lê.
+        instance:
+          type: string
+          description: Caminho da requisição.
+        code:
+          type: string
+          description: Código estável do erro.
+          examples: [nao_encontrado]
+        campo:
+          type: [string, 'null']
+          description: Campo do corpo que causou o erro, quando aplicável.
+        correlationId:
+          type: string
+        aviso:
+          type: string
+
+    Saude:
+      type: object
+      required: [status, ambiente, banco, aviso]
+      properties:
+        status:
+          type: string
+          const: ok
+        ambiente:
+          type: string
+          const: estudo
+        banco:
+          type: string
+          const: ok
+        aviso:
+          type: string
+
+    ResultadoSimulado:
+      type: string
+      enum: [sucesso, rejeicao, timeout, indisponivel]
+      description: Cenário da prefeitura simulada.
+
+    Simulacao:
+      type: object
+      description: Força o cenário em vez de sortear pela taxa de falha da organização.
+      properties:
+        resultado:
+          $ref: '#/components/schemas/ResultadoSimulado'
+        atrasoMs:
+          type: integer
+          minimum: 0
+          maximum: 120000
+          description: Espera até a conclusão. Zero conclui no próximo ciclo do varredor.
+
+    Endereco:
+      type: object
+      properties:
+        logradouro:
+          type: string
+          maxLength: 120
+        numero:
+          type: string
+          maxLength: 20
+        complemento:
+          type: string
+          maxLength: 80
+        bairro:
+          type: string
+          maxLength: 80
+        cidade:
+          type: string
+          maxLength: 80
+        uf:
+          type: string
+          maxLength: 2
+        cep:
+          type: string
+          maxLength: 12
+        pais:
+          type: string
+          maxLength: 2
+
+    EmissaoRequest:
+      type: object
+      required: [tomador, servico, valores]
+      properties:
+        tomador:
+          type: object
+          description: Precisa de `cnpj`, `cpf` ou `nif`. Campos extras são guardados.
+          required: [nome]
+          additionalProperties: true
+          properties:
+            nome:
+              type: string
+              minLength: 2
+              maxLength: 300
+            cnpj:
+              type: string
+              description: 14 dígitos com dígito verificador válido.
+              examples: ['19131243000197']
+            cpf:
+              type: string
+              description: 11 dígitos com dígito verificador válido.
+            nif:
+              type: string
+              maxLength: 40
+              description: Identificação fiscal de tomador estrangeiro.
+            email:
+              type: string
+              format: email
+              maxLength: 160
+              description: Gera um item na caixa de saída do painel. Nenhum e-mail é enviado.
+            telefone:
+              type: string
+              maxLength: 20
+            endereco:
+              $ref: '#/components/schemas/Endereco'
+        servico:
+          type: object
+          required: [descricao]
+          additionalProperties: true
+          properties:
+            descricao:
+              type: string
+              minLength: 1
+              maxLength: 2000
+            codigo:
+              type: string
+              maxLength: 20
+        valores:
+          type: object
+          required: [total, aliquotaIss]
+          additionalProperties: true
+          properties:
+            total:
+              type: number
+              exclusiveMinimum: 0
+              maximum: 999999999
+            aliquotaIss:
+              type: number
+              minimum: 0
+              maximum: 100
+            issRetido:
+              type: boolean
+        competencia:
+          type: string
+          pattern: ^\d{4}-\d{2}$
+          description: Mês de competência. Sem o campo, vale o mês atual.
+          examples: [2026-03]
+        referencia:
+          type: string
+          maxLength: 80
+          description: Referência livre do integrador.
+        simulacao:
+          $ref: '#/components/schemas/Simulacao'
+
+    EmissaoAceita:
+      type: object
+      required: [queued, invoiceId, status, pollUrl, aviso, cenario, origemCenario, atrasoMs]
+      properties:
+        queued:
+          type: boolean
+          const: true
+        invoiceId:
+          type: string
+          pattern: ^inv_
+        status:
+          type: string
+          const: queued
+        pollUrl:
+          type: string
+          description: Caminho para consultar o estado.
+          examples: [/api/v1/invoices/inv_2f6c1b0e9a4d4c7f8e3a1b2c3d4e5f60/status]
+        aviso:
+          type: string
+        cenario:
+          $ref: '#/components/schemas/ResultadoSimulado'
+        origemCenario:
+          $ref: '#/components/schemas/OrigemCenario'
+        atrasoMs:
+          type: integer
+          minimum: 0
+
+    OrigemCenario:
+      type: string
+      enum: [forcado, sorteado]
+
+    StatusNota:
+      type: string
+      enum: [queued, processing, issued, error, cancel_queued, cancelled]
+
+    CodigoFalha:
+      type: string
+      enum: [E001, E002, E003, E004]
+      description: E001 rejeição, E002 timeout, E003 indisponibilidade, E004 cota esgotada.
+
+    Nota:
+      type: object
+      required:
+        - invoiceId
+        - status
+        - numeroNfse
+        - numero
+        - serie
+        - chNFSe
+        - emittedAt
+        - ambiente
+        - aviso
+        - pdfUrl
+        - xmlUrl
+        - documentsCached
+        - errorCode
+        - errorMessage
+        - cancelledAt
+        - cancelXmlUrl
+        - cancelamentoRecusado
+        - cenario
+        - origemCenario
+        - conclusaoPrevista
+      properties:
+        invoiceId:
+          type: string
+          pattern: ^inv_
+        status:
+          $ref: '#/components/schemas/StatusNota'
+        numeroNfse:
+          type: [string, 'null']
+          pattern: ^\d{6,}$
+          description: Número com seis dígitos ou mais, depois da emissão.
+          examples: ['000001']
+        numero:
+          type: [string, 'null']
+          description: Mesmo valor de `numeroNfse`.
+        serie:
+          type: [string, 'null']
+        chNFSe:
+          type: [string, 'null']
+          description: Código interno de estudo, começa com `ESTUDO-`. Não é chave oficial.
+          examples: [ESTUDO-1-000001]
+        emittedAt:
+          type: [string, 'null']
+          format: date-time
+        ambiente:
+          type: string
+          const: estudo
+        aviso:
+          type: string
+        pdfUrl:
+          type: [string, 'null']
+          format: uri
+        xmlUrl:
+          type: [string, 'null']
+          format: uri
+        documentsCached:
+          type: boolean
+          description: '`true` quando PDF e XML estão disponíveis.'
+        errorCode:
+          oneOf:
+            - $ref: '#/components/schemas/CodigoFalha'
+            - type: 'null'
+        errorMessage:
+          type: [string, 'null']
+        cancelledAt:
+          type: [string, 'null']
+          format: date-time
+        cancelXmlUrl:
+          type: [string, 'null']
+          format: uri
+        cancelamentoRecusado:
+          type: [string, 'null']
+          description: Motivo da última recusa de cancelamento, se houve.
+        cenario:
+          $ref: '#/components/schemas/ResultadoSimulado'
+        origemCenario:
+          $ref: '#/components/schemas/OrigemCenario'
+        conclusaoPrevista:
+          type: string
+          format: date-time
+
+    CancelamentoRequest:
+      type: object
+      required: [invoiceId]
+      properties:
+        invoiceId:
+          type: string
+          minLength: 4
+        motivo:
+          type: string
+          minLength: 15
+          maxLength: 255
+          description: Opcional. Se vier, precisa ter de 15 a 255 caracteres.
+        codigoMotivo:
+          type: integer
+        simulacao:
+          $ref: '#/components/schemas/Simulacao'
+
+    CancelamentoAceito:
+      type: object
+      required: [queued, invoiceId, status, aviso, cenario, atrasoMs]
+      properties:
+        queued:
+          type: boolean
+          const: true
+        invoiceId:
+          type: string
+          pattern: ^inv_
+        status:
+          type: string
+          const: cancel_queued
+        aviso:
+          type: string
+        cenario:
+          $ref: '#/components/schemas/ResultadoSimulado'
+        atrasoMs:
+          type: integer
+          minimum: 0
+
+    NomeEvento:
+      type: string
+      enum: [nfse.issued, nfse.error, nfse.cancelled, nfse.documents_ready]
+
+    WebhookEndpointRequest:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 300
+          description: URL `http` ou `https`.
+        events:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/NomeEvento'
+        secret:
+          type: [string, 'null']
+          maxLength: 120
+          description: Segredo do HMAC. Sem segredo, a entrega vai sem `X-Notaas-Signature`.
+        active:
+          type: boolean
+          default: true
+
+    WebhookEndpointPatch:
+      type: object
+      minProperties: 1
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 300
+        events:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/NomeEvento'
+        secret:
+          type: [string, 'null']
+          maxLength: 120
+        active:
+          type: boolean
+
+    WebhookEndpoint:
+      type: object
+      required: [id, projectId, url, events, hasSecret, active, createdAt]
+      properties:
+        id:
+          type: string
+          pattern: ^wh_
+        projectId:
+          type: string
+          pattern: ^prj_
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/NomeEvento'
+        hasSecret:
+          type: boolean
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    WebhookEndpointCriado:
+      allOf:
+        - $ref: '#/components/schemas/WebhookEndpoint'
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: [string, 'null']
+              description: Segredo cadastrado. Aparece só na criação.
+
+    EntregaWebhook:
+      type: object
+      required: [id, endpointId, invoiceId, event, url, status, attempts, nextAttemptAt, lastStatusCode, lastError, createdAt]
+      properties:
+        id:
+          type: string
+          pattern: ^del_
+        endpointId:
+          type: string
+          pattern: ^wh_
+        invoiceId:
+          type: [string, 'null']
+        event:
+          $ref: '#/components/schemas/NomeEvento'
+        url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [pending, success, failed]
+        attempts:
+          type: integer
+          minimum: 0
+        nextAttemptAt:
+          type: string
+          format: date-time
+        lastStatusCode:
+          type: [integer, 'null']
+        lastError:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+
+    EventoWebhook:
+      type: object
+      required: [evento, timestamp, aviso, dados]
+      properties:
+        evento:
+          $ref: '#/components/schemas/NomeEvento'
+        timestamp:
+          type: string
+          format: date-time
+        aviso:
+          type: string
+        teste:
+          type: boolean
+          description: Presente e `true` só no evento de teste.
+        dados:
+          type: object
+
+    DadosNotaEmitida:
+      type: object
+      required: [id, numero, status, chNFSe, valorTotal]
+      properties:
+        id:
+          type: string
+        numero:
+          type: string
+        status:
+          const: issued
+        chNFSe:
+          type: string
+        valorTotal:
+          type: number
+
+    RegimeTributario:
+      type: string
+      enum: ['1', '2', '3', 3e]
+      description: 1 não optante, 2 MEI, 3 Simples Nacional ME/EPP, 3e Simples com excesso de sublimite.
+
+    EmpresaCampos:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        razaoSocial:
+          type: string
+          minLength: 2
+          maxLength: 200
+        inscricaoMunicipal:
+          type: [string, 'null']
+          maxLength: 20
+        inscricaoEstadual:
+          type: [string, 'null']
+          maxLength: 20
+        regimeTributario:
+          $ref: '#/components/schemas/RegimeTributario'
+        codigoMunicipio:
+          type: [string, 'null']
+          pattern: ^(\d{7})?$
+          description: Código IBGE do município, com 7 dígitos.
+        email:
+          type: [string, 'null']
+          description: E-mail de contato, ou vazio.
+        telefone:
+          type: [string, 'null']
+          maxLength: 20
+        description:
+          type: [string, 'null']
+          maxLength: 300
+        endereco:
+          $ref: '#/components/schemas/Endereco'
+        codigoTributacao:
+          type: [string, 'null']
+          maxLength: 20
+        tributacaoIss:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 4
+        serieNfse:
+          type: string
+          pattern: ^\d{1,5}$
+        aliquotaSimples:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 100
+        regimeIss:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 3
+        codigoServicoSp:
+          type: [string, 'null']
+          maxLength: 10
+        cnae:
+          type: [string, 'null']
+          maxLength: 10
+        basicAuthUsuario:
+          type: [string, 'null']
+          maxLength: 80
+        basicAuthSenha:
+          type: [string, 'null']
+          maxLength: 80
+          writeOnly: true
+          description: Guardada só para o estudo. Nunca volta nas respostas.
+        defaultNbs:
+          type: [string, 'null']
+          maxLength: 12
+        defaultCstIbscbs:
+          type: [string, 'null']
+          maxLength: 3
+        defaultClassificacao:
+          type: [string, 'null']
+          maxLength: 6
+        defaultIndicador:
+          type: [string, 'null']
+          maxLength: 6
+        cstPisCofins:
+          type: [string, 'null']
+          maxLength: 2
+        aliquotaPis:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 100
+        aliquotaCofins:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 100
+
+    EmpresaRequest:
+      allOf:
+        - $ref: '#/components/schemas/EmpresaCampos'
+        - type: object
+          required: [name, cnpj, razaoSocial]
+          properties:
+            cnpj:
+              type: string
+              description: 14 dígitos, com ou sem máscara, e dígito verificador válido.
+              examples: ['11222333000181']
+
+    EmpresaPatch:
+      allOf:
+        - $ref: '#/components/schemas/EmpresaCampos'
+        - type: object
+          minProperties: 1
+          description: O CNPJ não pode ser alterado.
+
+    Empresa:
+      type: object
+      required: [id, name, cnpj, razaoSocial, serieNfse, ultimoNumeroNfse, proximoNumeroNfse, active, hasCertificate, hasLogo, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          pattern: ^prj_
+        name:
+          type: string
+        cnpj:
+          type: string
+          pattern: ^\d{14}$
+        razaoSocial:
+          type: string
+        inscricaoMunicipal:
+          type: [string, 'null']
+        inscricaoEstadual:
+          type: [string, 'null']
+        regimeTributario:
+          type: [string, 'null']
+        codigoMunicipio:
+          type: [string, 'null']
+        email:
+          type: [string, 'null']
+        telefone:
+          type: [string, 'null']
+        description:
+          type: [string, 'null']
+        endereco:
+          $ref: '#/components/schemas/Endereco'
+        codigoTributacao:
+          type: [string, 'null']
+        tributacaoIss:
+          type: [integer, 'null']
+        serieNfse:
+          type: string
+        aliquotaSimples:
+          type: [number, 'null']
+        regimeIss:
+          type: [integer, 'null']
+        codigoServicoSp:
+          type: [string, 'null']
+        cnae:
+          type: [string, 'null']
+        basicAuthUsuario:
+          type: [string, 'null']
+        hasBasicAuthSenha:
+          type: boolean
+        ultimoNumeroNfse:
+          type: integer
+          minimum: 0
+        proximoNumeroNfse:
+          type: integer
+          minimum: 1
+        defaultNbs:
+          type: [string, 'null']
+        defaultCstIbscbs:
+          type: [string, 'null']
+        defaultClassificacao:
+          type: [string, 'null']
+        defaultIndicador:
+          type: [string, 'null']
+        cstPisCofins:
+          type: [string, 'null']
+        aliquotaPis:
+          type: [number, 'null']
+        aliquotaCofins:
+          type: [number, 'null']
+        active:
+          type: boolean
+        hasCertificate:
+          type: boolean
+        certFileName:
+          type: [string, 'null']
+        certUploadedAt:
+          type: [string, 'null']
+          format: date-time
+        hasLogo:
+          type: boolean
+        hasApiKey:
+          type: boolean
+          description: Presente em `GET` e `PATCH`. Ausente na criação.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ResumoEmpresa:
+      type: object
+      required: [id, name, cnpj, codigoMunicipio, active, hasCertificate, hasApiKey, proximoNumeroNfse, createdAt]
+      properties:
+        id:
+          type: string
+          pattern: ^prj_
+        name:
+          type: string
+        cnpj:
+          type: string
+          pattern: ^\d{14}$
+        codigoMunicipio:
+          type: [string, 'null']
+        active:
+          type: boolean
+        hasCertificate:
+          type: boolean
+        hasApiKey:
+          type: boolean
+        proximoNumeroNfse:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+
+    ListaEmpresas:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResumoEmpresa'
+        pagination:
+          type: object
+          required: [page, limit, total]
+          properties:
+            page:
+              type: integer
+              minimum: 1
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            total:
+              type: integer
+              minimum: 0
+
+    Numeracao:
+      type: object
+      required: [nfse]
+      properties:
+        nfse:
+          type: object
+          required: [ultimoNumero, proximoNumero, serie]
+          properties:
+            ultimoNumero:
+              type: integer
+              minimum: 0
+            proximoNumero:
+              type: integer
+              minimum: 1
+            serie:
+              type: string
+
+    Chave:
+      type: object
+      required: [id, name, kind, projectId, keyPrefix, scopes, rateLimitPerMinute, active, lastUsedAt, createdAt]
+      properties:
+        id:
+          type: string
+          pattern: ^key_
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [project, org]
+        projectId:
+          type: [string, 'null']
+        keyPrefix:
+          type: string
+          description: Início da chave, para reconhecer sem expor.
+          examples: [ntaas_c2e7]
+        scopes:
+          type: array
+          items:
+            type: string
+        rateLimitPerMinute:
+          type: integer
+          minimum: 1
+          maximum: 600
+        active:
+          type: boolean
+        lastUsedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    ChaveCriada:
+      allOf:
+        - $ref: '#/components/schemas/Chave'
+        - type: object
+          required: [key]
+          properties:
+            key:
+              type: string
+              description: Chave completa. Aparece só nesta resposta.
+
+    StatusDominio:
+      type: string
+      enum: [none, pending_verification, verified]
+
+    Configuracoes:
+      type: object
+      required: [name, slug, planName, creditsUsed, creditsLimit, projectLimit, latencyMinMs, latencyMaxMs, failureRate, retries, storageBaseUrl, storageStatus]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        planName:
+          type: string
+          const: Estudo
+        creditsUsed:
+          type: integer
+          minimum: 0
+        creditsLimit:
+          type: integer
+          minimum: 0
+        projectLimit:
+          type: integer
+          minimum: 0
+        latencyMinMs:
+          type: integer
+          minimum: 0
+        latencyMaxMs:
+          type: integer
+          minimum: 0
+        failureRate:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Chance de falha, em porcentagem.
+        retries:
+          type: array
+          description: Esperas das retentativas de webhook, em ms.
+          items:
+            type: integer
+            minimum: 0
+        storageBaseUrl:
+          type: [string, 'null']
+        storageStatus:
+          $ref: '#/components/schemas/StatusDominio'
+
+    ListaWebhooks:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEndpoint'
+
+    WebhookRemovido:
+      type: object
+      required: [deleted]
+      properties:
+        deleted:
+          type: boolean
+          const: true
+
+    EntregaTesteEnfileirada:
+      type: object
+      required: [queued, deliveryId]
+      properties:
+        queued:
+          type: boolean
+          const: true
+        deliveryId:
+          type: string
+          pattern: ^del_
+
+    ListaEntregasWebhook:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntregaWebhook'
+
+    EmpresaAtualizada:
+      type: object
+      required: [updated, id, project]
+      properties:
+        updated:
+          type: boolean
+          const: true
+        id:
+          type: string
+          pattern: ^prj_
+        project:
+          $ref: '#/components/schemas/Empresa'
+
+    NumeracaoPatch:
+      type: object
+      required: [ultimoNumeroNfse]
+      properties:
+        ultimoNumeroNfse:
+          type: integer
+          minimum: 0
+          description: Último número já usado fora da bancada.
+          examples: [120]
+
+    ListaChaves:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Chave'
+
+    ChaveRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+          description: Nome para reconhecer a chave no painel.
+          examples: [integracao-erp]
+        rateLimitPerMinute:
+          type: integer
+          minimum: 1
+          maximum: 600
+          default: 60
+          description: Teto de requisições por minuto.
+
+    ChaveRevogada:
+      type: object
+      required: [revoked, id]
+      properties:
+        revoked:
+          type: boolean
+          const: true
+        id:
+          type: string
+          pattern: ^key_
+
+    CertificadoUpload:
+      type: object
+      required: [file, password]
+      properties:
+        file:
+          type: string
+          contentMediaType: application/x-pkcs12
+          description: Arquivo `.pfx` de até 50 KB.
+        password:
+          type: string
+          format: password
+          description: Senha do certificado. É descartada.
+
+    CertificadoRegistrado:
+      type: object
+      required: [fileName, validado, aviso, uploadedAt]
+      properties:
+        fileName:
+          type: string
+        validado:
+          type: boolean
+          const: false
+        aviso:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+
+    LogoUpload:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          contentMediaType: image/png
+          description: Imagem PNG, JPEG ou WebP.
+
+    LogoSalva:
+      type: object
+      required: [ok, aviso]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        aviso:
+          type: string
+
+    LogoRemovida:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          const: true
+
+    DominioArquivosRequest:
+      type: object
+      required: [storageBaseUrl]
+      properties:
+        storageBaseUrl:
+          type: [string, 'null']
+          format: uri
+          description: Domínio `https`, ou `null` para remover.
+          examples: [https://arquivos.estudo.test]
+        simularVerificacao:
+          type: boolean
+          description: Marca o domínio como verificado sem checar CNAME.
+
+    DominioArquivos:
+      type: object
+      required: [storageBaseUrl, status, message]
+      properties:
+        storageBaseUrl:
+          type: [string, 'null']
+        status:
+          $ref: '#/components/schemas/StatusDominio'
+        message:
+          type: string
+
+    EventoNfseEmitida:
+      allOf:
+        - $ref: '#/components/schemas/EventoWebhook'
+        - type: object
+          properties:
+            evento:
+              const: nfse.issued
+            dados:
+              $ref: '#/components/schemas/DadosNotaEmitida'
+
+    EventoDocumentosProntos:
+      allOf:
+        - $ref: '#/components/schemas/EventoWebhook'
+        - type: object
+          properties:
+            evento:
+              const: nfse.documents_ready
+            dados:
+              allOf:
+                - $ref: '#/components/schemas/DadosNotaEmitida'
+                - type: object
+                  required: [documentStatus]
+                  properties:
+                    documentStatus:
+                      type: string
+                      const: complete
+
+    EventoNfseErro:
+      allOf:
+        - $ref: '#/components/schemas/EventoWebhook'
+        - type: object
+          properties:
+            evento:
+              const: nfse.error
+            dados:
+              type: object
+              required: [id, status, errorCode, errorMessage]
+              properties:
+                id:
+                  type: string
+                status:
+                  const: error
+                errorCode:
+                  $ref: '#/components/schemas/CodigoFalha'
+                errorMessage:
+                  type: string
+
+    EventoNfseCancelada:
+      allOf:
+        - $ref: '#/components/schemas/EventoWebhook'
+        - type: object
+          properties:
+            evento:
+              const: nfse.cancelled
+            dados:
+              type: object
+              required: [id, numeroNfse, status, cancelledAt]
+              properties:
+                id:
+                  type: string
+                numeroNfse:
+                  type: [string, 'null']
+                status:
+                  const: cancelled
+                cancelledAt:
+                  type: string
+                  format: date-time
