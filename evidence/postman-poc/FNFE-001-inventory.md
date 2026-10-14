@@ -131,10 +131,11 @@ Mudanças aprovadas em 2026-10-14 e feitas na branch `poc/postman-fake-nfe-contr
 | G-02 | `npm run seed:poc` cria conta, organização, empresa (CNPJ sintético) e chaves com 600/min, e grava um environment Postman em `data/` (ignorado pelo Git, modo 600). O console mostra só prefixos | smoke: seed → emissão → `issued` → PDF `200` |
 | G-03 | Erros em `application/problem+json` (RFC 9457) com `type` `urn:bancada-nfse:problema:<code>`, `title`, `status`, `detail`, `instance` e extensões `code`, `campo`, `correlationId`, `aviso`. O `429` também segue o formato e mantém `Retry-After` | teste `erro segue problem+json…` + smoke |
 | G-04 | `X-Correlation-Id` em todas as respostas da API. Valor recebido é ecoado se casar com `[A-Za-z0-9._:-]{1,128}`; senão a bancada gera um UUID | testes de correlation + smoke |
+| G-05 | Rota de organização sem header responde `401 nao_autorizado`; chave do tipo errado continua `403 tipo_de_chave` | teste `rota de organização sem header…` |
 | G-06, G-07 | Resolvidas pelo seed (organização nova por execução, limite de 600/min) | — |
 
 **Mudança incompatível:** o corpo de erro trocou `type: "erro_de_estudo"` e `message` por `type` URN e `detail`. Nenhum consumidor interno usava esses campos: o painel usa server actions e os testes só verificavam status.
 
-**Continuam em aberto:** G-05 (rota de organização sem header devolve `403`), G-08 (a Collection precisa forçar o cenário), G-09 (sem listagem de notas pela API) e G-12 (vira responsabilidade do contrato).
+**Continuam em aberto:** G-08 (a Collection precisa forçar o cenário), G-09 (sem listagem de notas pela API) e G-12 (vira responsabilidade do contrato).
 
-Testes depois das mudanças: 15 de 15 passando, typecheck ok, build ok.
+Testes depois das mudanças: 16 de 16 passando, typecheck ok, build ok.

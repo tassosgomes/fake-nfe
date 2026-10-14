@@ -234,6 +234,7 @@ function authorizeProject(req: Request, scope: string): ProjectAuth {
 
 function authorizeOrg(req: Request, scope: string): OrgAuth {
   const token = req.headers.get("x-api-key")?.trim() ?? "";
+  if (!token) throw fail(401, "nao_autorizado", "Informe o header x-api-key.");
   if (!token.startsWith("ntaas_org_")) throw fail(403, "tipo_de_chave", "Esta rota aceita token de organização (prefixo ntaas_org_).");
   const key = findKey(token);
   if (!key || key.kind !== "org") throw fail(401, "nao_autorizado", "Token inválido.");

@@ -21,6 +21,7 @@ import { GET as status } from "../app/api/v1/invoices/[id]/status/route";
 import { GET as pdf } from "../app/api/v1/invoices/[id]/pdf/route";
 import { GET as xml } from "../app/api/v1/invoices/[id]/xml/route";
 import { GET as health } from "../app/api/v1/health/route";
+import { GET as listProjects } from "../app/api/v1/org/projects/route";
 
 process.env.DISABLE_SWEEPER = "1";
 process.env.DATABASE_PATH = path.join(mkdtempSync(path.join(tmpdir(), "bancada-")), "estudo.sqlite");
@@ -225,6 +226,15 @@ test("correlation id ausente ou inválido vira um UUID novo", async () => {
   assert.match(fresh.headers.get("x-correlation-id") ?? "", uuid);
   const replaced = await postEmit(nota(), { "x-correlation-id": "tem espaço" });
   assert.match(replaced.headers.get("x-correlation-id") ?? "", uuid);
+});
+
+test("rota de organização sem header responde 401 e com chave de projeto responde 403", async () => {
+  const missing = await listProjects(new Request("http://bancada.local/api/v1/org/projects"));
+  assert.equal(missing.status, 401);
+  assert.equal((await missing.json()).code, "nao_autorizado");
+  const wrongKind = await listProjects(new Request("http://bancada.local/api/v1/org/projects", { headers: { "x-api-key": token } }));
+  assert.equal(wrongKind.status, 403);
+  assert.equal((await wrongKind.json()).code, "tipo_de_chave");
 });
 
 test("health responde sem chave", async () => {
