@@ -1,0 +1,17 @@
+{
+  "workspace": {
+    "id": "ce18cf47-6909-4378-865c-85321cd3050d"
+  },
+  "entities": {
+    "collections": [
+      "../postman/collections/Bancada NFS-e Fluxos_45689996-32e26c59-3ab0-489e-9b72-5adbd4044a3f.postman_collection.json",
+      "../postman/collections/Bancada NFS-e API_45689996-5d56aebf-7b85-49c0-8170-b0b4c727ed59.postman_collection.json"
+    ],
+    "environments": [
+      "../postman/environments/Local_45689996-17acefd3-e385-4aba-98d6-894d0d665c25.postman_environment.json"
+    ],
+    "specs": [],
+    "flows": [],
+    "globals": []
+  }
+}

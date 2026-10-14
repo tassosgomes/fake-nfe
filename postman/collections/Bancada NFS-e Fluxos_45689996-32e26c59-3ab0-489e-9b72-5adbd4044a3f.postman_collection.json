@@ -1,0 +1,2388 @@
+{
+  "info": {
+    "_postman_id": "32e26c59-3ab0-489e-9b72-5adbd4044a3f",
+    "name": "Bancada NFS-e Fluxos",
+    "description": "Fluxos de negócio da Bancada NFS-e, com assertions derivadas do contrato `contracts/openapi.yaml`.\n\nRode com `npm run postman:e2e`, que cria uma organização descartável (`npm run seed:poc`) e injeta os schemas do contrato em `contractSchemas`. Rodando de outro jeito, a validação de schema é pulada.\n\nVariáveis do environment: `baseUrl`, `apiKey` (chave de projeto), `orgToken` (token de organização) e `projectId`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 - Saúde e setup",
+      "item": [
+        {
+          "name": "Verificar saúde",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Saude\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('banco ok', () => pm.expect(pm.response.json().banco).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "id": "151a00a8-aae7-466b-ba27-d68df910048f",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ler configurações da organização",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Configuracoes\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();\npm.collectionVariables.set('creditsBefore', String(body.creditsUsed));\npm.test('cota disponível para o fluxo', () => pm.expect(body.creditsLimit - body.creditsUsed).to.be.at.least(2));"
+                ]
+              }
+            }
+          ],
+          "id": "0395ad08-7d3c-44d4-9a49-d1110997916b",
+          "request": {
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{orgToken}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "settings"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "ed4b2768-a53f-41ea-bc0f-0a7d2b47c0b9",
+      "description": "Disponibilidade e linha de base da organização criada pelo seed."
+    },
+    {
+      "name": "01 - Empresas",
+      "item": [
+        {
+          "name": "Listar empresas",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"ListaEmpresas\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('empresa do seed está na lista', () => pm.expect(pm.response.json().data.map(p => p.id)).to.include(pm.environment.get('projectId')));"
+                ]
+              }
+            }
+          ],
+          "id": "442de505-d1b4-4f2f-ad8b-e903c1b7e771",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cadastrar empresa temporária",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 201, \"schema\": \"Empresa\"}');\n// CNPJ sintético com dígitos verificadores válidos.\nconst digits = Array.from({ length: 8 }, () => Math.floor(Math.random() * 10)).join('') + '0001';\nconst dv = (base, factors) => {\n  const sum = base.split('').reduce((acc, d, i) => acc + Number(d) * factors[i], 0) % 11;\n  return sum < 2 ? 0 : 11 - sum;\n};\nconst first = dv(digits, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);\nconst second = dv(digits + first, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);\npm.collectionVariables.set('tempCnpj', `${digits}${first}${second}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();\npm.collectionVariables.set('tempProjectId', body.id);\npm.test('empresa nasce ativa, sem chave e na série pedida', () => {\n  pm.expect(body.active).to.be.true;\n  pm.expect(body.cnpj).to.eql(pm.collectionVariables.get('tempCnpj'));\n  pm.expect(body.serieNfse).to.eql('7');\n  pm.expect(body.proximoNumeroNfse).to.eql(1);\n});"
+                ]
+              }
+            }
+          ],
+          "id": "c533e390-abeb-4083-a3c5-447ade4da67d",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Filial POC {{runId}}\",\n  \"cnpj\": \"{{tempCnpj}}\",\n  \"razaoSocial\": \"Filial de Estudo POC LTDA\",\n  \"codigoMunicipio\": \"3550308\",\n  \"serieNfse\": \"7\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/org/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obter empresa temporária",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Empresa\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('mesma empresa', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('tempProjectId')));"
+                ]
+              }
+            }
+          ],
+          "id": "ca235096-ceeb-4957-9763-e67a1774e64f",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/projects/{{tempProjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects",
+                "{{tempProjectId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar e-mail da empresa",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"EmpresaAtualizada\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('e-mail atualizado', () => pm.expect(pm.response.json().project.email).to.eql(`fiscal-${pm.collectionVariables.get('runId')}@filial.test`));"
+                ]
+              }
+            }
+          ],
+          "id": "319c59a3-6269-4b93-a1ea-d41868442a5c",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"fiscal-{{runId}}@filial.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/org/projects/{{tempProjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects",
+                "{{tempProjectId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obter numeração",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Numeracao\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('empresa nova começa do zero', () => pm.expect(pm.response.json().nfse.ultimoNumero).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "id": "33ce0452-ce05-4b4a-bd17-7f190157009a",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/projects/{{tempProjectId}}/numeracao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects",
+                "{{tempProjectId}}",
+                "numeracao"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Avançar numeração",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Numeracao\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('próximo número é 101', () => pm.expect(pm.response.json().nfse.proximoNumero).to.eql(101));"
+                ]
+              }
+            }
+          ],
+          "id": "8fd0eb22-065c-4039-b068-65cd1c9b6782",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ultimoNumeroNfse\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/org/projects/{{tempProjectId}}/numeracao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects",
+                "{{tempProjectId}}",
+                "numeracao"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Numeração não recua",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Numeracao\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('número menor é ignorado', () => pm.expect(pm.response.json().nfse.ultimoNumero).to.eql(100));"
+                ]
+              }
+            }
+          ],
+          "id": "6d2c35f0-0447-471b-9a1d-5b5647205473",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ultimoNumeroNfse\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/org/projects/{{tempProjectId}}/numeracao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects",
+                "{{tempProjectId}}",
+                "numeracao"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "953177be-f056-421c-a502-66aec3a87b72",
+      "description": "Cadastro e manutenção de uma empresa temporária, desativada no cleanup.",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          {
+            "key": "key",
+            "value": "x-api-key",
+            "type": "string"
+          },
+          {
+            "key": "value",
+            "value": "{{orgToken}}",
+            "type": "string"
+          },
+          {
+            "key": "in",
+            "value": "header",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "02 - Chaves",
+      "item": [
+        {
+          "name": "Criar chave temporária",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 201, \"schema\": \"ChaveCriada\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();\npm.collectionVariables.set('tempKeyId', body.id);\npm.variables.set('tempKey', body.key);\npm.test('chave de projeto completa aparece só na criação', () => {\n  pm.expect(body.key).to.match(/^ntaas_(?!org_)/);\n  pm.expect(body.key.startsWith(body.keyPrefix)).to.be.true;\n  pm.expect(body.scopes).to.have.members(['emit', 'cancel', 'query', 'webhooks']);\n});"
+                ]
+              }
+            }
+          ],
+          "id": "d74eb5b4-e136-4fa2-b5e6-fe5b6569bda4",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"poc-{{runId}}\",\n  \"rateLimitPerMinute\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/org/projects/{{tempProjectId}}/api-keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects",
+                "{{tempProjectId}}",
+                "api-keys"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar chaves sem expor segredo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"ListaChaves\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const keys = pm.response.json().data;\npm.test('chave criada aparece só com prefixo', () => {\n  const found = keys.find(k => k.id === pm.collectionVariables.get('tempKeyId'));\n  pm.expect(found).to.exist;\n  pm.expect(found).to.not.have.property('key');\n});"
+                ]
+              }
+            }
+          ],
+          "id": "3e2150fa-4f32-463d-ad3e-5b28f23ae228",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/projects/{{tempProjectId}}/api-keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects",
+                "{{tempProjectId}}",
+                "api-keys"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Revogar chave temporária",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"ChaveRevogada\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "2ec81fa9-12e9-47c5-930b-e3c78246c47b",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/projects/{{tempProjectId}}/api-keys/{{tempKeyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects",
+                "{{tempProjectId}}",
+                "api-keys",
+                "{{tempKeyId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Chave revogada não emite",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 403, \"code\": \"chave_revogada\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "50640d39-73e5-4229-999c-1fd9421f017c",
+          "request": {
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{tempKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tomador\": {\n    \"nome\": \"Cliente Exemplo LTDA\",\n    \"cnpj\": \"19131243000197\",\n    \"email\": \"financeiro@cliente.test\"\n  },\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}\",\n  \"simulacao\": {\n    \"resultado\": \"sucesso\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "630fa38a-07dd-4312-95d4-de0b9e690071",
+      "description": "Ciclo de vida de uma chave de projeto: criar, listar sem expor, revogar e provar a revogação.",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          {
+            "key": "key",
+            "value": "x-api-key",
+            "type": "string"
+          },
+          {
+            "key": "value",
+            "value": "{{orgToken}}",
+            "type": "string"
+          },
+          {
+            "key": "in",
+            "value": "header",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "03 - Emissão",
+      "item": [
+        {
+          "name": "Emitir nota",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 202, \"schema\": \"EmissaoAceita\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();\npm.collectionVariables.set('invoiceId', body.invoiceId);\npm.test('nota entra na fila sem estar autorizada', () => {\n  pm.expect(body.status).to.eql('queued');\n  pm.expect(body.cenario).to.eql('sucesso');\n  pm.expect(body.origemCenario).to.eql('forcado');\n  pm.expect(body.pollUrl).to.eql(`/api/v1/invoices/${body.invoiceId}/status`);\n});"
+                ]
+              }
+            }
+          ],
+          "id": "ebf4df09-126d-489e-b734-2053c8f979ff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "poc-{{runId}}-emissao"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tomador\": {\n    \"nome\": \"Cliente Exemplo LTDA\",\n    \"cnpj\": \"19131243000197\",\n    \"email\": \"financeiro@cliente.test\"\n  },\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}\",\n  \"simulacao\": {\n    \"resultado\": \"sucesso\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Repetir emissão idempotente",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 202, \"schema\": \"EmissaoAceita\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('replay devolve a mesma nota', () => pm.expect(pm.response.json().invoiceId).to.eql(pm.collectionVariables.get('invoiceId')));\npm.test('replay é sinalizado', () => pm.expect(pm.response.headers.get('Idempotent-Replayed')).to.eql('true'));"
+                ]
+              }
+            }
+          ],
+          "id": "0e009a28-86bb-4bc9-a8ac-651f9866394e",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "poc-{{runId}}-emissao"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tomador\": {\n    \"nome\": \"Cliente Exemplo LTDA\",\n    \"cnpj\": \"19131243000197\",\n    \"email\": \"financeiro@cliente.test\"\n  },\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}\",\n  \"simulacao\": {\n    \"resultado\": \"sucesso\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "538d4148-e9c5-4873-a2ac-6d0294df48ff",
+      "description": "Emissão com cenário forçado e idempotência."
+    },
+    {
+      "name": "04 - Consulta",
+      "item": [
+        {
+          "name": "Consultar até emitida",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Nota\"}');\n// Espera curta entre consultas; o varredor da fila roda a cada 400 ms.\nif (Number(pm.variables.get('pollCount') || 0) > 0) setTimeout(() => {}, 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();\nconst tries = Number(pm.variables.get('pollCount') || 0);\nif (['queued', 'processing', 'cancel_queued'].includes(body.status) && tries < 30) {\n  pm.variables.set('pollCount', String(tries + 1));\n  pm.execution.setNextRequest(pm.info.requestName);\n  return;\n}\npm.variables.set('pollCount', '0');\npm.test('nota chega a issued dentro do prazo', () => pm.expect(body.status).to.eql('issued'));\n\npm.test('nota emitida tem número, chave de estudo e documentos', () => {\n  pm.expect(body.numeroNfse).to.match(/^\\d{6}$/);\n  pm.expect(body.chNFSe).to.match(/^ESTUDO-/);\n  pm.expect(body.documentsCached).to.be.true;\n  pm.expect(body.pdfUrl).to.match(/\\/pdf$/);\n  pm.expect(body.errorCode).to.be.null;\n});\npm.collectionVariables.set('numeroNfse', body.numeroNfse);"
+                ]
+              }
+            }
+          ],
+          "id": "110d0d91-560f-45ab-a43f-6418b899de76",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "bb174337-eaab-4e26-a179-8d125fa9aab8",
+      "description": "Polling até a autorização simulada."
+    },
+    {
+      "name": "05 - Documentos",
+      "item": [
+        {
+          "name": "Baixar XML",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('XML de estudo da nota', () => {\n  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/xml');\n  pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment');\n  const xml = pm.response.text();\n  pm.expect(xml).to.include('<NfseEstudo');\n  pm.expect(xml).to.include(pm.collectionVariables.get('numeroNfse'));\n});"
+                ]
+              }
+            }
+          ],
+          "id": "2fb5f700-327c-4310-ba54-cd35c5160d25",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/xml",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "xml"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Baixar PDF",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('PDF não vazio', () => {\n  pm.expect(pm.response.headers.get('Content-Type')).to.eql('application/pdf');\n  pm.expect(pm.response.headers.get('Content-Disposition')).to.include('inline');\n  pm.expect(pm.response.responseSize).to.be.above(1000);\n  pm.expect(pm.response.text().startsWith('%PDF')).to.be.true;\n});"
+                ]
+              }
+            }
+          ],
+          "id": "687c9f63-ac0e-47f5-8a55-1412e3864fbe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "pdf"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "XML de cancelamento ainda não existe",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 409, \"code\": \"documento_indisponivel\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "bf640285-a2bc-407e-9bf8-26127d6434c7",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/xml?type=cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "xml"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "cancel"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "0b95e74e-3622-4ae7-a687-56e7449be7a4",
+      "description": "XML e PDF de estudo da nota emitida."
+    },
+    {
+      "name": "06 - Cancelamento",
+      "item": [
+        {
+          "name": "Cancelar nota",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 202, \"schema\": \"CancelamentoAceito\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('cancelamento entra na fila', () => pm.expect(pm.response.json().status).to.eql('cancel_queued'));"
+                ]
+              }
+            }
+          ],
+          "id": "eca31ee6-c265-48c5-8ffd-3c3065c17123",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoiceId\": \"{{invoiceId}}\",\n  \"motivo\": \"Serviço lançado em duplicidade na competência\",\n  \"simulacao\": {\n    \"resultado\": \"sucesso\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cancelar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar até cancelada",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Nota\"}');\n// Espera curta entre consultas; o varredor da fila roda a cada 400 ms.\nif (Number(pm.variables.get('pollCount') || 0) > 0) setTimeout(() => {}, 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();\nconst tries = Number(pm.variables.get('pollCount') || 0);\nif (['queued', 'processing', 'cancel_queued'].includes(body.status) && tries < 30) {\n  pm.variables.set('pollCount', String(tries + 1));\n  pm.execution.setNextRequest(pm.info.requestName);\n  return;\n}\npm.variables.set('pollCount', '0');\npm.test('nota chega a cancelled dentro do prazo', () => pm.expect(body.status).to.eql('cancelled'));\n\npm.test('nota cancelada mantém o número e expõe o XML de cancelamento', () => {\n  pm.expect(body.numeroNfse).to.eql(pm.collectionVariables.get('numeroNfse'));\n  pm.expect(body.cancelledAt).to.be.a('string');\n  pm.expect(body.cancelXmlUrl).to.match(/type=cancel$/);\n});"
+                ]
+              }
+            }
+          ],
+          "id": "adef18a8-c7a8-46a1-bb90-d5e4b74ccdc7",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Baixar XML de cancelamento",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('XML de cancelamento', () => pm.expect(pm.response.text()).to.include('<NfseEstudo'));"
+                ]
+              }
+            }
+          ],
+          "id": "d22de602-94dd-49b4-b591-b270e7fd7a7e",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/xml?type=cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "xml"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "cancel"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar de novo é recusado",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 422, \"code\": \"status_invalido\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "d214d678-ec72-4995-916b-dcc4d8ac5363",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoiceId\": \"{{invoiceId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cancelar"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "311f08dc-c6c6-43c4-bbfc-85423ecfceb1",
+      "description": "Cancelamento aceito, estado final e XML de cancelamento."
+    },
+    {
+      "name": "07 - Webhooks",
+      "item": [
+        {
+          "name": "Cadastrar webhook",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 201, \"schema\": \"WebhookEndpointCriado\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();\npm.collectionVariables.set('webhookId', body.id);\npm.test('segredo aparece só na criação', () => {\n  pm.expect(body.secret).to.eql(`segredo-poc-${pm.collectionVariables.get('runId')}`);\n  pm.expect(body.hasSecret).to.be.true;\n});"
+                ]
+              }
+            }
+          ],
+          "id": "5d5453a4-8c71-4fe5-92b9-c301c9fc3534",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"http://127.0.0.1:9/poc-{{runId}}\",\n  \"events\": [\n    \"nfse.issued\",\n    \"nfse.cancelled\"\n  ],\n  \"secret\": \"segredo-poc-{{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/endpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "endpoints"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar webhooks sem segredo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"ListaWebhooks\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('endpoint listado sem o segredo', () => {\n  const found = pm.response.json().data.find(w => w.id === pm.collectionVariables.get('webhookId'));\n  pm.expect(found).to.exist;\n  pm.expect(found).to.not.have.property('secret');\n});"
+                ]
+              }
+            }
+          ],
+          "id": "0ef65d1f-181e-4a4d-a22f-1342df1a6826",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/endpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "endpoints"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Enfileirar evento de teste",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 202, \"schema\": \"EntregaTesteEnfileirada\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('deliveryId', pm.response.json().deliveryId);"
+                ]
+              }
+            }
+          ],
+          "id": "b610095c-3ebf-4522-bcde-795fe298e4c4",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/endpoints/{{webhookId}}/test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "endpoints",
+                "{{webhookId}}",
+                "test"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar entregas",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"ListaEntregasWebhook\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('entrega de teste no histórico', () => {\n  const found = pm.response.json().data.find(d => d.id === pm.collectionVariables.get('deliveryId'));\n  pm.expect(found).to.exist;\n  pm.expect(found.event).to.eql('nfse.issued');\n  pm.expect(found.endpointId).to.eql(pm.collectionVariables.get('webhookId'));\n});"
+                ]
+              }
+            }
+          ],
+          "id": "73e9d7fd-6735-4265-9001-09bc77d967c6",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/deliveries?limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "deliveries"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desativar webhook",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"WebhookEndpoint\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('endpoint inativo', () => pm.expect(pm.response.json().active).to.be.false);"
+                ]
+              }
+            }
+          ],
+          "id": "0e61ee8d-b926-4ae7-a5f2-2c9e8b12391f",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/endpoints/{{webhookId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "endpoints",
+                "{{webhookId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remover webhook",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"WebhookRemovido\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "58f037fa-c665-44f1-ba2e-62c2f7ffe73f",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/endpoints/{{webhookId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "endpoints",
+                "{{webhookId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Webhook removido não existe",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 404, \"code\": \"nao_encontrado\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "9264a891-1139-4a0d-ad17-2fe722f4816e",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/endpoints/{{webhookId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "endpoints",
+                "{{webhookId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "6e42cc86-e364-4eb9-ab9f-6b74953cadae",
+      "description": "Cadastro, teste, histórico e remoção de um endpoint. A URL não recebe nada de propósito."
+    },
+    {
+      "name": "90 - Cenários negativos",
+      "item": [
+        {
+          "name": "Sem autenticação",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {},
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 401, \"code\": \"nao_autorizado\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "48aa7cdf-e259-4049-a35a-b46f2900e3b4",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tomador\": {\n    \"nome\": \"Cliente Exemplo LTDA\",\n    \"cnpj\": \"19131243000197\",\n    \"email\": \"financeiro@cliente.test\"\n  },\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}\",\n  \"simulacao\": {\n    \"resultado\": \"sucesso\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Chave desconhecida",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 401, \"code\": \"nao_autorizado\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "216d7379-5885-4faa-b337-e3061d73bcf2",
+          "request": {
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "ntaas_chave-que-nao-existe",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tomador\": {\n    \"nome\": \"Cliente Exemplo LTDA\",\n    \"cnpj\": \"19131243000197\",\n    \"email\": \"financeiro@cliente.test\"\n  },\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}\",\n  \"simulacao\": {\n    \"resultado\": \"sucesso\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Token de organização em rota de projeto",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 403, \"code\": \"tipo_de_chave\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "179ebd15-7fa8-438a-bc21-6fadc6abca16",
+          "request": {
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "x-api-key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{orgToken}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Chave de projeto em rota de organização",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 403, \"code\": \"tipo_de_chave\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "2c416d5d-a256-47c0-a953-c322cc57a65c",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rota de organização sem autenticação",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {},
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 401, \"code\": \"nao_autorizado\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "6431c546-0358-4724-97d2-6b87851a6edb",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Emissão sem tomador",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 400, \"code\": \"payload_invalido\", \"campo\": \"tomador\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "7d281cba-4199-41e5-b1b6-3f66db7830ce",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}\",\n  \"simulacao\": {\n    \"resultado\": \"sucesso\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CNPJ do tomador inválido",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 400, \"code\": \"payload_invalido\", \"campo\": \"tomador.cnpj\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "f08b1f14-0a35-40c9-a927-ce717fb0330a",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tomador\": {\n    \"nome\": \"Cliente Exemplo LTDA\",\n    \"cnpj\": \"19131243000198\"\n  },\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}\",\n  \"simulacao\": {\n    \"resultado\": \"sucesso\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Corpo que não é JSON",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 400, \"code\": \"json_invalido\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "f8656326-2de6-4b16-9a02-ee60120cad98",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tomador\": ",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Simulação inválida no header",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 400, \"code\": \"simulacao_invalida\", \"campo\": \"simulacao\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "b44e1610-a7ae-4a87-acd0-3a585f41526e",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Simulacao",
+                "value": "talvez:10"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tomador\": {\n    \"nome\": \"Cliente Exemplo LTDA\",\n    \"cnpj\": \"19131243000197\",\n    \"email\": \"financeiro@cliente.test\"\n  },\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Idempotency-Key com outro corpo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 409, \"code\": \"idempotency_conflito\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "44f79a3d-54f0-4641-aeef-f2b8240ecad6",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "poc-{{runId}}-emissao"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tomador\": {\n    \"nome\": \"Cliente Exemplo LTDA\",\n    \"cnpj\": \"19131243000197\",\n    \"email\": \"financeiro@cliente.test\"\n  },\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}-outro-corpo\",\n  \"simulacao\": {\n    \"resultado\": \"sucesso\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Nota inexistente",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 404, \"code\": \"nao_encontrado\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "28f7ff99-2893-434e-b31b-d33c06f5bce5",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/inv_nao_existe/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "inv_nao_existe",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Emitir nota que a prefeitura rejeita",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 202, \"schema\": \"EmissaoAceita\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('rejectedInvoiceId', pm.response.json().invoiceId);"
+                ]
+              }
+            }
+          ],
+          "id": "5448f586-264a-4038-9a96-2f88d218848e",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tomador\": {\n    \"nome\": \"Cliente Exemplo LTDA\",\n    \"cnpj\": \"19131243000197\",\n    \"email\": \"financeiro@cliente.test\"\n  },\n  \"servico\": {\n    \"descricao\": \"Aula de integração fiscal\",\n    \"codigo\": \"010700\"\n  },\n  \"valores\": {\n    \"total\": 1500,\n    \"aliquotaIss\": 2\n  },\n  \"competencia\": \"2026-03\",\n  \"referencia\": \"POC-{{runId}}-rejeitada\",\n  \"simulacao\": {\n    \"resultado\": \"rejeicao\",\n    \"atrasoMs\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/emitir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "emitir"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PDF antes da emissão",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 409, \"code\": \"documento_indisponivel\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "15bb0c51-efbd-4734-8d42-c8fc47cb8a53",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{rejectedInvoiceId}}/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{rejectedInvoiceId}}",
+                "pdf"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar até rejeitada",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Nota\"}');\n// Espera curta entre consultas; o varredor da fila roda a cada 400 ms.\nif (Number(pm.variables.get('pollCount') || 0) > 0) setTimeout(() => {}, 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();\nconst tries = Number(pm.variables.get('pollCount') || 0);\nif (['queued', 'processing', 'cancel_queued'].includes(body.status) && tries < 30) {\n  pm.variables.set('pollCount', String(tries + 1));\n  pm.execution.setNextRequest(pm.info.requestName);\n  return;\n}\npm.variables.set('pollCount', '0');\npm.test('nota chega a error dentro do prazo', () => pm.expect(body.status).to.eql('error'));\n\npm.test('rejeição municipal vira E001 sem número', () => {\n  pm.expect(body.errorCode).to.eql('E001');\n  pm.expect(body.errorMessage).to.be.a('string').and.not.empty;\n  pm.expect(body.numeroNfse).to.be.null;\n  pm.expect(body.documentsCached).to.be.false;\n});"
+                ]
+              }
+            }
+          ],
+          "id": "abe586cb-738c-49b1-98b7-16f030a9b782",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{rejectedInvoiceId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{rejectedInvoiceId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar nota rejeitada",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 422, \"code\": \"status_invalido\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "5adba261-3c4f-48a0-bdb3-eaa691c5c3e4",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoiceId\": \"{{rejectedInvoiceId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cancelar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Webhook com URL não http",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 400, \"code\": \"url_invalida\", \"campo\": \"url\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "dac8f469-a97b-4092-8e0d-c030425818bc",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"ftp://127.0.0.1/hook\",\n  \"events\": [\n    \"nfse.issued\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/endpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "endpoints"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Correlation ID inválido é substituído",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Saude\"}');"
+                ]
+              }
+            }
+          ],
+          "id": "4004ccab-c0c0-4d13-8dbd-24a924d7a393",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "tem espaço"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "a1bf2471-077a-44fc-a62d-13dd2974bd99",
+      "description": "Autenticação, validação, idempotência, estado e falha simulada. Todo erro precisa sair em problem+json."
+    },
+    {
+      "name": "99 - Cleanup",
+      "item": [
+        {
+          "name": "Desativar empresa temporária",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 204}');"
+                ]
+              }
+            }
+          ],
+          "id": "7a922596-0ef1-4530-be44-9c9dd41af555",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/projects/{{tempProjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects",
+                "{{tempProjectId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Empresa desativada sai da listagem",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"ListaEmpresas\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('empresa temporária não aparece entre as ativas', () => pm.expect(pm.response.json().data.map(p => p.id)).to.not.include(pm.collectionVariables.get('tempProjectId')));"
+                ]
+              }
+            }
+          ],
+          "id": "9af464f0-d450-49ff-83ef-1016873b46c1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "projects"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cota consumiu exatamente uma nota",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('expect', '{\"status\": 200, \"schema\": \"Configuracoes\"}');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('só a nota emitida conta; replay e rejeição não consomem', () => {\n  pm.expect(pm.response.json().creditsUsed).to.eql(Number(pm.collectionVariables.get('creditsBefore')) + 1);\n});"
+                ]
+              }
+            }
+          ],
+          "id": "79e59348-ba73-48ee-aede-9a71eda23534",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/org/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org",
+                "settings"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "a563c944-688e-4faa-9ac2-388383e2f1a0",
+      "description": "Desativa o que o fluxo criou e confere a cota consumida.",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          {
+            "key": "key",
+            "value": "x-api-key",
+            "type": "string"
+          },
+          {
+            "key": "value",
+            "value": "{{orgToken}}",
+            "type": "string"
+          },
+          {
+            "key": "in",
+            "value": "header",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "x-api-key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "// Correlation ID previsível por requisição; um header explícito no request vence.\nlet runId = pm.collectionVariables.get('runId');\nif (!runId) {\n  runId = Date.now().toString(36);\n  pm.collectionVariables.set('runId', runId);\n}\nconst seq = Number(pm.collectionVariables.get('seq') || 0) + 1;\npm.collectionVariables.set('seq', String(seq));\nif (!pm.request.headers.has('X-Correlation-Id')) {\n  pm.request.headers.upsert({ key: 'X-Correlation-Id', value: `poc-${runId}-${seq}` });\n}\npm.variables.set('sentCorrelationId', pm.request.headers.get('X-Correlation-Id'));\npm.variables.set('expect', '{}');"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "// Garantias comuns a toda resposta. Cada request declara o esperado em `expect`.\nconst exp = JSON.parse(pm.variables.get('expect') || '{}');\nconst sent = pm.variables.get('sentCorrelationId') || '';\nconst got = pm.response.headers.get('X-Correlation-Id');\n\nif (exp.status) {\n  pm.test(`status ${exp.status}`, () => pm.response.to.have.status(exp.status));\n}\npm.test('X-Ambiente: estudo', () => pm.expect(pm.response.headers.get('X-Ambiente')).to.eql('estudo'));\npm.test('X-Correlation-Id ecoado ou gerado', () => {\n  if (/^[A-Za-z0-9._:-]{1,128}$/.test(sent)) pm.expect(got).to.eql(sent);\n  else pm.expect(got).to.match(/^[0-9a-f-]{36}$/);\n});\npm.test('tempo de resposta indicativo < 3000 ms', () => pm.expect(pm.response.responseTime).to.be.below(3000));\n\nif (pm.response.code >= 400) {\n  pm.test('erro em application/problem+json', () => {\n    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');\n    const body = pm.response.json();\n    pm.expect(body.status).to.eql(pm.response.code);\n    pm.expect(body.type).to.eql(`urn:bancada-nfse:problema:${body.code}`);\n    pm.expect(body.instance).to.match(/^\\/api\\/v1\\//);\n    pm.expect(body.correlationId).to.eql(got);\n    pm.expect(body.title).to.be.a('string').and.not.empty;\n    pm.expect(body.detail).to.be.a('string').and.not.empty;\n  });\n  if (exp.code) pm.test(`code ${exp.code}`, () => pm.expect(pm.response.json().code).to.eql(exp.code));\n  if (exp.campo) pm.test(`campo ${exp.campo}`, () => pm.expect(pm.response.json().campo).to.eql(exp.campo));\n}\n\nif (exp.schema) {\n  const raw = pm.variables.get('contractSchemas');\n  if (!raw) {\n    pm.test.skip(`corpo segue ${exp.schema} (rode com npm run postman:e2e para carregar o contrato)`, () => {});\n  } else {\n    const schemas = JSON.parse(raw);\n    pm.test(`corpo segue o schema ${exp.schema} do contrato`, () => {\n      pm.response.to.have.jsonSchema({ components: { schemas }, $ref: `#/components/schemas/${exp.schema}` });\n    });\n  }\n}"
+        ]
+      }
+    }
+  ]
+}
