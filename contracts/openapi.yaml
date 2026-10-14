@@ -79,6 +79,8 @@ paths:
       operationId: emitirNfse
       tags: [Notas]
       summary: Emitir uma NFS-e de estudo
+      security:
+        - chaveProjeto: []
       description: |
         Coloca a nota na fila simulada e responde `202` com `invoiceId`. A nota nasce `queued` e **não está autorizada**
         nesta resposta: consulte `GET /invoices/{id}/status` até `issued` ou `error`.
@@ -181,7 +183,11 @@ paths:
       operationId: consultarNfse
       tags: [Notas]
       summary: Consultar o estado de uma NFS-e
+      security:
+        - chaveProjeto: []
       description: Estados possíveis — `queued`, `processing`, `issued`, `error`, `cancel_queued`, `cancelled`.
+      x-governanca-excecoes:
+        tsg-collection-pagination-params: 'Não é coleção: `status` é um recurso único da nota.'
       parameters:
         - $ref: '#/components/parameters/InvoiceId'
         - $ref: '#/components/parameters/CorrelationId'
@@ -215,6 +221,10 @@ paths:
       operationId: baixarXmlNfse
       tags: [Notas]
       summary: Baixar o XML de estudo
+      security:
+        - chaveProjeto: []
+      x-governanca-excecoes:
+        tsg-content-type-json-only: 'O documento fiscal de estudo é XML por natureza; erros continuam em problem+json.'
       description: |
         Disponível com a nota `issued` ou `cancelled`. Com `type=cancel`, devolve o XML do cancelamento, que só existe
         para nota `cancelled`. A raiz é `NfseEstudo`, sem o leiaute oficial.
@@ -264,6 +274,10 @@ paths:
       operationId: baixarPdfNfse
       tags: [Notas]
       summary: Baixar o PDF de estudo
+      security:
+        - chaveProjeto: []
+      x-governanca-excecoes:
+        tsg-content-type-json-only: 'O DANFSe de estudo é PDF binário; erros continuam em problem+json.'
       description: Disponível com a nota `issued` ou `cancelled`. O PDF traz a faixa "sem valor fiscal".
       parameters:
         - $ref: '#/components/parameters/InvoiceId'
@@ -303,6 +317,8 @@ paths:
       operationId: cancelarNfse
       tags: [Notas]
       summary: Pedir o cancelamento de uma NFS-e
+      security:
+        - chaveProjeto: []
       description: |
         Só uma nota `issued` entra na fila de cancelamento. Se a prefeitura simulada recusa, a nota volta para `issued`
         e o status mostra `cancelamentoRecusado`.
@@ -360,6 +376,11 @@ paths:
       operationId: listarWebhooks
       tags: [Webhooks]
       summary: Listar endpoints de webhook do projeto
+      description: Lista os endpoints de webhook do projeto da chave, ativos e inativos. O segredo nunca volta.
+      security:
+        - chaveProjeto: []
+      x-governanca-excecoes:
+        tsg-collection-pagination-params: 'Coleção pequena e limitada por projeto; não há paginação.'
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -388,6 +409,8 @@ paths:
       operationId: criarWebhook
       tags: [Webhooks]
       summary: Cadastrar um endpoint de webhook
+      security:
+        - chaveProjeto: []
       description: |
         `http://localhost` e `http://127.0.0.1` são aceitos de propósito, para o estudo rodar na mesma máquina.
         O segredo é devolvido só nesta resposta.
@@ -441,6 +464,8 @@ paths:
       operationId: atualizarWebhook
       tags: [Webhooks]
       summary: Atualizar um endpoint de webhook
+      security:
+        - chaveProjeto: []
       description: Atualiza só os campos enviados. `secret` com `null` ou `""` remove o segredo.
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
@@ -482,6 +507,9 @@ paths:
       operationId: removerWebhook
       tags: [Webhooks]
       summary: Remover um endpoint de webhook
+      description: Remove o endpoint. Entregas já registradas continuam no histórico.
+      security:
+        - chaveProjeto: []
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -514,6 +542,8 @@ paths:
       operationId: testarWebhook
       tags: [Webhooks]
       summary: Enfileirar um evento de teste
+      security:
+        - chaveProjeto: []
       description: 'Enfileira um `nfse.issued` marcado com `"teste": true`. O endpoint precisa assinar `nfse.issued`.'
       parameters:
         - name: id
@@ -556,7 +586,11 @@ paths:
       operationId: listarEntregasWebhook
       tags: [Webhooks]
       summary: Listar o histórico de entregas
+      security:
+        - chaveProjeto: []
       description: Inclui entregas pendentes, bem-sucedidas e falhas, da mais recente para a mais antiga.
+      x-governanca-excecoes:
+        tsg-collection-pagination-params: 'Histórico recente com teto de 100 itens via `limit`; não há navegação por páginas.'
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
         - name: limit
@@ -596,8 +630,11 @@ paths:
       operationId: listarEmpresas
       tags: [Administração]
       summary: Listar empresas da organização
+      description: Lista as empresas da organização, paginadas. Sem `active`, só as ativas.
       security:
         - tokenOrganizacao: []
+      x-governanca-excecoes:
+        tsg-collection-pagination-params: 'A API já pagina com `page` e `limit`; renomear para `_page`/`_size` quebra integradores. Rever na próxima versão major.'
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
         - name: active
@@ -715,6 +752,7 @@ paths:
       operationId: obterEmpresa
       tags: [Administração]
       summary: Obter uma empresa
+      description: Devolve todos os dados da empresa, inclusive certificado, logo e numeração. A senha do Basic Auth nunca volta.
       security:
         - tokenOrganizacao: []
       parameters:
@@ -823,6 +861,7 @@ paths:
       operationId: obterNumeracao
       tags: [Administração]
       summary: Obter a numeração da NFS-e
+      description: Devolve o último número de NFS-e usado e o próximo, com a série da empresa.
       security:
         - tokenOrganizacao: []
       parameters:
@@ -866,6 +905,8 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/NumeracaoPatch'
+            example:
+              ultimoNumeroNfse: 120
       responses:
         '200':
           description: Numeração depois da atualização.
@@ -903,6 +944,8 @@ paths:
       description: Mostra só o prefixo das chaves.
       security:
         - tokenOrganizacao: []
+      x-governanca-excecoes:
+        tsg-collection-pagination-params: 'Coleção pequena e limitada por empresa; não há paginação.'
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -944,6 +987,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ChaveRequest'
+            example:
+              name: integracao-erp
+              rateLimitPerMinute: 120
       responses:
         '201':
           description: Chave criada.
@@ -1019,6 +1065,8 @@ paths:
       operationId: enviarCertificado
       tags: [Administração]
       summary: Enviar o certificado A1 de estudo
+      x-governanca-excecoes:
+        tsg-content-type-json-only: 'Upload de arquivo .pfx exige multipart/form-data.'
       description: |
         Exige arquivo e senha, como um gateway real, mas a bancada **descarta a senha, não abre o arquivo e não assina nada**.
         Só o nome do arquivo é guardado.
@@ -1069,6 +1117,8 @@ paths:
       operationId: enviarLogo
       tags: [Administração]
       summary: Enviar a logo da empresa
+      x-governanca-excecoes:
+        tsg-content-type-json-only: 'Upload de imagem exige multipart/form-data.'
       description: A logo aparece só no PDF de estudo. Aceita PNG, JPEG ou WebP de até 500 KB.
       security:
         - tokenOrganizacao: []
@@ -1112,6 +1162,7 @@ paths:
       operationId: removerLogo
       tags: [Administração]
       summary: Remover a logo da empresa
+      description: Remove a logo. O PDF de estudo volta a sair sem imagem.
       security:
         - tokenOrganizacao: []
       parameters:
@@ -1146,8 +1197,11 @@ paths:
       operationId: obterConfiguracoes
       tags: [Administração]
       summary: Obter plano, cota e simulação da organização
+      description: Devolve o plano Estudo, a cota usada, os parâmetros da fila simulada e o domínio de arquivos.
       security:
         - tokenOrganizacao: []
+      x-governanca-excecoes:
+        tsg-collection-pagination-params: 'Não é coleção: `settings` é um recurso único da organização.'
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
       responses:
@@ -1189,6 +1243,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/DominioArquivosRequest'
+            example:
+              storageBaseUrl: https://arquivos.estudo.test
+              simularVerificacao: true
       responses:
         '200':
           description: Domínio gravado.
