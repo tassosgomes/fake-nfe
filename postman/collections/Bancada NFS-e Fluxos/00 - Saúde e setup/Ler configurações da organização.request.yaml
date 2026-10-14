@@ -1,0 +1,21 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/org/settings'
+order: 2000
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: '{{orgToken}}'
+    in: header
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "Configuracoes"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    const body = pm.response.json();
+    pm.collectionVariables.set('creditsBefore', String(body.creditsUsed));
+    pm.test('cota disponível para o fluxo', () => pm.expect(body.creditsLimit - body.creditsUsed).to.be.at.least(2));

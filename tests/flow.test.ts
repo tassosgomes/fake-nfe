@@ -20,6 +20,8 @@ import { POST as cancelar } from "../app/api/v1/cancelar/route";
 import { GET as status } from "../app/api/v1/invoices/[id]/status/route";
 import { GET as pdf } from "../app/api/v1/invoices/[id]/pdf/route";
 import { GET as xml } from "../app/api/v1/invoices/[id]/xml/route";
+import { GET as health } from "../app/api/v1/health/route";
+import { GET as listProjects } from "../app/api/v1/org/projects/route";
 
 process.env.DISABLE_SWEEPER = "1";
 process.env.DATABASE_PATH = path.join(mkdtempSync(path.join(tmpdir(), "bancada-")), "estudo.sqlite");
@@ -195,6 +197,51 @@ test("webhook assinado na emissão", async () => {
   assert.equal(issued.signature, signBody("segredo-aula", issued.body));
   assert.match(issued.body, /sem valor fiscal/i);
   server.close();
+});
+
+test("erro segue problem+json e devolve o correlation id recebido", async () => {
+  const denied = await emitir(
+    new Request("http://bancada.local/api/v1/emitir", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-correlation-id": "aula-123" },
+      body: JSON.stringify(nota()),
+    }),
+  );
+  assert.equal(denied.status, 401);
+  assert.equal(denied.headers.get("content-type"), "application/problem+json");
+  assert.equal(denied.headers.get("x-correlation-id"), "aula-123");
+  const problem = await denied.json();
+  assert.equal(problem.type, "urn:bancada-nfse:problema:nao_autorizado");
+  assert.equal(problem.status, 401);
+  assert.equal(problem.code, "nao_autorizado");
+  assert.equal(problem.instance, "/api/v1/emitir");
+  assert.equal(problem.correlationId, "aula-123");
+  assert.ok(problem.title && problem.detail);
+});
+
+test("correlation id ausente ou inválido vira um UUID novo", async () => {
+  const uuid = /^[0-9a-f-]{36}$/;
+  const fresh = await postEmit({ ...nota(), simulacao: { resultado: "sucesso", atrasoMs: 0 } });
+  assert.equal(fresh.status, 202);
+  assert.match(fresh.headers.get("x-correlation-id") ?? "", uuid);
+  const replaced = await postEmit(nota(), { "x-correlation-id": "tem espaço" });
+  assert.match(replaced.headers.get("x-correlation-id") ?? "", uuid);
+});
+
+test("rota de organização sem header responde 401 e com chave de projeto responde 403", async () => {
+  const missing = await listProjects(new Request("http://bancada.local/api/v1/org/projects"));
+  assert.equal(missing.status, 401);
+  assert.equal((await missing.json()).code, "nao_autorizado");
+  const wrongKind = await listProjects(new Request("http://bancada.local/api/v1/org/projects", { headers: { "x-api-key": token } }));
+  assert.equal(wrongKind.status, 403);
+  assert.equal((await wrongKind.json()).code, "tipo_de_chave");
+});
+
+test("health responde sem chave", async () => {
+  const response = await health(new Request("http://bancada.local/api/v1/health"));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).status, "ok");
+  assert.ok(response.headers.get("x-correlation-id"));
 });
 
 test("chave inválida e cota esgotada", async () => {

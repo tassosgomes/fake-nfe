@@ -1,0 +1,20 @@
+$kind: http-request
+description: Devolve o plano Estudo, a cota usada, os parâmetros da fila simulada e o domínio de arquivos.
+url: "{{baseUrl}}/org/settings"
+method: GET
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Accept
+    value: application/json
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
+settings: {}
+examples: ./.resources/Obter plano, cota e simulação da organização.resources/examples
+order: 14000

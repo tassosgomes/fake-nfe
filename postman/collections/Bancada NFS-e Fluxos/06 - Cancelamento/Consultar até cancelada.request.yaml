@@ -1,0 +1,29 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/invoices/{{invoiceId}}/status'
+order: 2000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "Nota"}');
+    // Espera curta entre consultas; o varredor da fila roda a cada 400 ms.
+    if (Number(pm.variables.get('pollCount') || 0) > 0) setTimeout(() => {}, 500);
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    const body = pm.response.json();
+    const tries = Number(pm.variables.get('pollCount') || 0);
+    if (['queued', 'processing', 'cancel_queued'].includes(body.status) && tries < 30) {
+      pm.variables.set('pollCount', String(tries + 1));
+      pm.execution.setNextRequest(pm.info.requestName);
+      return;
+    }
+    pm.variables.set('pollCount', '0');
+    pm.test('nota chega a cancelled dentro do prazo', () => pm.expect(body.status).to.eql('cancelled'));
+
+    pm.test('nota cancelada mantém o número e expõe o XML de cancelamento', () => {
+      pm.expect(body.numeroNfse).to.eql(pm.collectionVariables.get('numeroNfse'));
+      pm.expect(body.cancelledAt).to.be.a('string');
+      pm.expect(body.cancelXmlUrl).to.match(/type=cancel$/);
+    });

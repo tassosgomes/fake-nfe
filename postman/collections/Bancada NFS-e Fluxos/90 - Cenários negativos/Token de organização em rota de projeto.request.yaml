@@ -1,0 +1,15 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/invoices/{{invoiceId}}/status'
+order: 3000
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: '{{orgToken}}'
+    in: header
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 403, "code": "tipo_de_chave"}');

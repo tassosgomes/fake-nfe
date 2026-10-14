@@ -1,0 +1,15 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/emitir'
+order: 8000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: text
+  content: "{\"tomador\": "
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 400, "code": "json_invalido"}');

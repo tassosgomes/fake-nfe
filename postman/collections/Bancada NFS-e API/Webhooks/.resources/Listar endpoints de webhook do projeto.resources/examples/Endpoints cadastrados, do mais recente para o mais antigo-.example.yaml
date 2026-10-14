@@ -1,0 +1,68 @@
+$kind: http-example
+name: Endpoints cadastrados, do mais recente para o mais antigo.
+request:
+  url: "{{baseUrl}}/webhooks/endpoints"
+  method: GET
+  headers:
+    - key: x-api-key
+      value: <API Key>
+      description: "Added as a part of security scheme: apikey"
+    - key: X-Correlation-Id
+      value: aula-123
+      disabled: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+    - key: Accept
+      value: application/json
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    - key: X-Correlation-Id
+      value: string
+      disabled: false
+      description: Correlation ID recebido ou gerado pela bancada.
+    - key: X-Ambiente
+      value: string
+      disabled: false
+      description: Sempre `estudo`.
+    - key: X-Aviso
+      value: string
+      disabled: false
+      description: Sempre `sem-valor-fiscal`.
+    - key: Content-Type
+      value: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "data": [
+          {
+            "id": "wh_",
+            "projectId": "prj_",
+            "url": "https://MpsLcUJxFTrvKjoI.datuCENydUiCIppeWRj.OnwDOyv1leaekRSSMr60gAmHLx0dhFZgGkbp2T05LAmW4PQHG9VkJxu",
+            "events": [
+              "nfse.cancelled",
+              "nfse.issued"
+            ],
+            "hasSecret": true,
+            "active": true,
+            "createdAt": "1965-01-03T23:56:51.524Z"
+          },
+          {
+            "id": "wh_",
+            "projectId": "prj_",
+            "url": "http://gPGBdMGJGHxrrS.bycMHrP11yYLEjXtgKB6CLMSLyBKYSLEy8jkctIUh6egBE5aIRlXKhM9KPQOmAK6b7aAdJnk1uUo5",
+            "events": [
+              "nfse.error",
+              "nfse.issued"
+            ],
+            "hasSecret": true,
+            "active": false,
+            "createdAt": "1966-07-31T17:51:16.634Z"
+          }
+        ]
+      }
+order: 1000

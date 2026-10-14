@@ -1,0 +1,13 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/org/projects'
+order: 1000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "ListaEmpresas"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('empresa do seed está na lista', () => pm.expect(pm.response.json().data.map(p => p.id)).to.include(pm.environment.get('projectId')));

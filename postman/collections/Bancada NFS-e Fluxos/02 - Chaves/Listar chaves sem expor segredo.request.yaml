@@ -1,0 +1,18 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/org/projects/{{tempProjectId}}/api-keys'
+order: 2000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "ListaChaves"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    const keys = pm.response.json().data;
+    pm.test('chave criada aparece só com prefixo', () => {
+      const found = keys.find(k => k.id === pm.collectionVariables.get('tempKeyId'));
+      pm.expect(found).to.exist;
+      pm.expect(found).to.not.have.property('key');
+    });

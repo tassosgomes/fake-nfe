@@ -1,0 +1,157 @@
+name: Postman — validação de PR
+
+on:
+  pull_request:
+    paths:
+      - "contracts/**"
+      - "governance/**"
+      - "postman/**"
+      - ".postman/**"
+      - "app/**"
+      - "lib/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/postman-validate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postman-validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  POSTMAN_CLI_VERSION: 1.74.0
+  NODE_VERSION: "24"
+
+jobs:
+  contrato:
+    name: Contrato e governança
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar Postman CLI ${{ env.POSTMAN_CLI_VERSION }}
+        run: npm install --global "postman-cli@${POSTMAN_CLI_VERSION}" && postman --version
+
+      - name: Sintaxe do contrato (qualquer aviso bloqueia, inclusive operationId duplicado)
+        run: postman spec lint contracts/openapi.yaml --issueType syntax --fail-severity warning --no-report-events
+
+      - name: Login no Postman
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        run: |
+          if [ -z "${POSTMAN_API_KEY}" ]; then
+            echo "::error::Secret POSTMAN_API_KEY ausente. O lint de governança do Postman exige login, mesmo com ruleset local."
+            exit 1
+          fi
+          postman login --with-api-key "${POSTMAN_API_KEY}"
+
+      - name: Governança do contrato
+        run: postman spec lint contracts/openapi.yaml --ruleset governance/openapi.spectral.yaml --fail-severity error --no-report-events
+
+      - name: Collections e environments
+        run: |
+          postman collection lint "postman/collections/Bancada NFS-e Fluxos"
+          postman collection lint "postman/collections/Bancada NFS-e API"
+          postman environment lint postman/environments --fail-severity warning
+
+  aplicacao:
+    name: Testes existentes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  e2e:
+    name: Fluxos E2E (Postman)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_PATH: ${{ github.workspace }}/data/ci.sqlite
+      REPORT_DIR: ${{ github.workspace }}/postman-report
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Instalar Postman CLI ${{ env.POSTMAN_CLI_VERSION }}
+        run: npm install --global "postman-cli@${POSTMAN_CLI_VERSION}" && postman --version
+
+      - run: npm run build
+
+      - name: Subir a bancada
+        run: |
+          mkdir -p data
+          # Sessão própria: o next-server é neto do npm, e o cleanup encerra o grupo inteiro.
+          setsid nohup npm start -- -p 3000 > data/server.log 2>&1 &
+          echo $! > data/server.pid
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/v1/health > /dev/null; then
+              echo "Bancada respondeu ao health check."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::A bancada não respondeu ao health check em 60 s."
+          cat data/server.log
+          exit 1
+
+      - name: Rodar a Collection de fluxos
+        # Sem --output: o relatório em YAML exige login e grava as chaves completas.
+        # O log do console mostra cada request e assertion, e só os prefixos das chaves.
+        run: |
+          set -o pipefail
+          mkdir -p "${REPORT_DIR}"
+          npm run postman:e2e 2>&1 | tee "${REPORT_DIR}/e2e.log"
+
+      - name: Conferir que não há chave no relatório
+        if: always()
+        # Defesa em profundidade: o repositório é público e o artefato pode ser baixado.
+        run: |
+          if [ -d "${REPORT_DIR}" ]; then
+            find "${REPORT_DIR}" -type f -exec sed -i -E 's/ntaas_(org_)?[A-Za-z0-9_-]+/ntaas_\1<REDACTED>/g' {} +
+            if grep -rqE 'ntaas_(org_)?[a-f0-9]{12,}' "${REPORT_DIR}"; then
+              echo "::error::Sobrou chave sem máscara no relatório."
+              exit 1
+            fi
+          fi
+
+      - name: Publicar relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postman-e2e-report
+          path: |
+            postman-report/
+            data/server.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Encerrar a bancada
+        if: always()
+        run: |
+          if [ -f data/server.pid ]; then
+            kill -- "-$(cat data/server.pid)" || true
+          fi

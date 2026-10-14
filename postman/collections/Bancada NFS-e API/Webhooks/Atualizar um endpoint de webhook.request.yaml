@@ -1,0 +1,33 @@
+$kind: http-request
+description: Atualiza só os campos enviados. `secret` com `null` ou `""` remove o segredo.
+url: "{{baseUrl}}/webhooks/endpoints/:id"
+method: PATCH
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+pathVariables:
+  - key: id
+    value: wh_
+    disabled: false
+    description: (Required) Identificador do endpoint (`wh_…`).
+body:
+  type: json
+  content: |-
+    {
+      "active": false
+    }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
+settings: {}
+examples: ./.resources/Atualizar um endpoint de webhook.resources/examples
+order: 3000

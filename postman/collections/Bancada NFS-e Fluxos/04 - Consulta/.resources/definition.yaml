@@ -1,0 +1,3 @@
+$kind: collection
+description: Polling até a autorização simulada.
+order: 5000

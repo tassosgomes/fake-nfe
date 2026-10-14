@@ -1,0 +1,13 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/health'
+order: 1000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "Saude"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('banco ok', () => pm.expect(pm.response.json().banco).to.eql('ok'));

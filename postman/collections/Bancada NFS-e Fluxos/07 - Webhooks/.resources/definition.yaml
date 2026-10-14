@@ -1,0 +1,3 @@
+$kind: collection
+description: Cadastro, teste, histórico e remoção de um endpoint. A URL não recebe nada de propósito.
+order: 8000

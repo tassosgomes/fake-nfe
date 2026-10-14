@@ -28,3 +28,31 @@ Mutações de emissão e cancelamento aceitam `Idempotency-Key` com até 80 cara
 `GET` e `PATCH /api/v1/org/projects/{id}/numeracao` leem e avançam o último número da NFS-e. Um número menor é ignorado.
 
 O upload de certificado exige arquivo e senha, como no contrato de um gateway real, mas a bancada descarta a senha, não abre o arquivo e não assina nada.
+
+## Erros
+
+Toda falha da API responde `application/problem+json` (RFC 9457):
+
+```json
+{
+  "type": "urn:bancada-nfse:problema:nao_autorizado",
+  "title": "Não autenticado",
+  "status": 401,
+  "detail": "Informe o header x-api-key.",
+  "instance": "/api/v1/emitir",
+  "code": "nao_autorizado",
+  "campo": null,
+  "correlationId": "aula-123",
+  "aviso": "Ambiente de estudo. ..."
+}
+```
+
+`code` é estável e serve para decidir o que fazer. `campo` aponta o campo do corpo quando o erro é de validação.
+
+## Correlation ID
+
+Envie `X-Correlation-Id` (até 128 caracteres `[A-Za-z0-9._:-]`) e a resposta devolve o mesmo valor no header e, em erro, no corpo. Sem o header, ou com valor fora do padrão, a bancada gera um UUID.
+
+## Health
+
+`GET /api/v1/health` não pede chave, não conta no rate limit e responde `200` quando o banco responde. Se o banco falha, responde `503`.

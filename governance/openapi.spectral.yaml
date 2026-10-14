@@ -1,0 +1,347 @@
+# Ruleset de governança dos contratos HTTP da Bancada NFS-e.
+#
+# Origem: ruleset corporativo `tsg-flow-contract-creator/rulesets/openapi.yaml`
+# (code-for-coders @ bcb543e, sha256 a4ae9f4e5e0d…). Regras `tsg-*` mantêm o nome e a
+# intenção originais; regras `fnfe-*` são as que o plano da POC acrescenta.
+#
+# Diferenças em relação à origem, todas por limitação do Postman CLI 1.74:
+#   - sem `extends: spectral:oas`: o Postman recusa `extends` ("isn't supported in Postman
+#     rulesets"). A validação estrutural do OpenAPI continua no próprio `postman spec lint`.
+#   - sem `overrides`: também recusado. Exceções vivem no contrato, em
+#     `x-governanca-excecoes.<regra>: <motivo>`, e só as regras marcadas como
+#     "aceita exceção" as respeitam.
+#   - `tsg-info-contact-defined` sobe de warn para error, como pede o plano.
+#   - toda regra ganhou `message` explícita; a padrão do Postman não diz o que corrigir.
+#
+# Execução: postman spec lint contracts/openapi.yaml --ruleset governance/openapi.spectral.yaml
+
+rules:
+  # ---------------------------------------------------------------
+  # OpenAPI 3.1
+  # ---------------------------------------------------------------
+
+  tsg-openapi-version:
+    description: Contratos devem usar OpenAPI 3.1.
+    message: Use uma versão OpenAPI 3.1.x neste contrato.
+    severity: error
+    given: $.openapi
+    then:
+      function: pattern
+      functionOptions:
+        match: '^3\.1\.\d+$'
+
+  tsg-no-deprecated-schema-example:
+    description: Schema Objects devem usar o keyword JSON Schema examples.
+    message: "Não use `example` em Schema Objects; prefira `examples: [valor]` no OpenAPI 3.1."
+    severity: error
+    given:
+      - >-
+        $.components.schemas..[?(@property !== 'properties' && @ &&
+        @.example !== void 0 && (@.enum || @.type || @.format || @.$ref ||
+        @.properties || @.items || @.allOf || @.oneOf || @.anyOf ||
+        @.description || @.required))]
+      - >-
+        $..content..[?(@property !== 'properties' && @ && @.example !== void 0 &&
+        (@.enum || @.type || @.format || @.$ref || @.properties || @.items ||
+        @.allOf || @.oneOf || @.anyOf || @.description || @.required))]
+      - >-
+        $..parameters..[?(@property !== 'properties' && @ && @.example !== void 0 &&
+        (@.enum || @.type || @.format || @.$ref || @.properties || @.items ||
+        @.allOf || @.oneOf || @.anyOf || @.description || @.required))]
+      - >-
+        $..headers..[?(@property !== 'properties' && @ && @.example !== void 0 &&
+        (@.enum || @.type || @.format || @.$ref || @.properties || @.items ||
+        @.allOf || @.oneOf || @.anyOf || @.description || @.required))]
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          not:
+            required:
+              - example
+
+  tsg-schema-examples-array:
+    description: O keyword JSON Schema examples deve ser uma lista.
+    message: "Em Schema Objects, `examples` deve ser um array; exemplos nomeados pertencem ao Media Type/Parameter Object."
+    severity: error
+    given:
+      - $.components.schemas[*].examples
+      - $.components.schemas[*]..examples
+      - $.components.parameters[*].schema..examples
+      - $.components.parameters[*].content[*].schema..examples
+      - $.components.requestBodies[*].content[*].schema..examples
+      - $.components.responses[*].content[*].schema..examples
+      - $.components.headers[*].schema..examples
+      - $.paths[*].parameters[*].schema..examples
+      - $.paths[*][*].parameters[*].schema..examples
+      - $.paths[*][*].parameters[*].content[*].schema..examples
+      - $.paths[*][*].requestBody.content[*].schema..examples
+      - $.paths[*][*].responses[*].content[*].schema..examples
+      - $.paths[*][*].responses[*].headers[*].schema..examples
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+
+  # ---------------------------------------------------------------
+  # URLs e versionamento
+  # ---------------------------------------------------------------
+
+  tsg-paths-kebab-case:
+    description: Paths devem usar kebab-case e somente caracteres [a-z0-9-/{}].
+    message: "Path fora do padrão kebab-case."
+    severity: error
+    given: $.paths[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(/([a-z0-9-]+|\\{[a-zA-Z0-9]+\\}))+/?$"
+
+  tsg-paths-max-nesting:
+    description: Evite mais de 3 níveis de aninhamento de recursos.
+    message: "Path com aninhamento demais."
+    severity: warn
+    given: $.paths[*]~
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "^(/[^/]+){7,}$"
+
+  tsg-api-must-be-versioned:
+    description: "A versão major deve aparecer na URL base (servers) ou no path (ex.: /v1/users)."
+    message: "Contrato sem versão: use `servers: [{url: /api/v1}]` ou prefixe os paths com /vN."
+    severity: error
+    given: $
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          anyOf:
+            - type: object
+              required: [servers]
+              properties:
+                servers:
+                  type: array
+                  contains:
+                    type: object
+                    required: [url]
+                    properties:
+                      url:
+                        type: string
+                        pattern: "/v[0-9]+(/|$)"
+            - type: object
+              required: [paths]
+              properties:
+                paths:
+                  type: object
+                  propertyNames:
+                    pattern: "/v[0-9]+(/|$)"
+
+  # ---------------------------------------------------------------
+  # Formato e segurança
+  # ---------------------------------------------------------------
+
+  # Aceita exceção.
+  tsg-content-type-json-only:
+    description: Bodies devem usar application/json (ou application/problem+json em erros).
+    message: "Content type fora do padrão JSON. Se for legítimo, registre em x-governanca-excecoes.tsg-content-type-json-only com o motivo."
+    severity: error
+    given:
+      - "$.paths[*][?(@ && !(@['x-governanca-excecoes'] && @['x-governanca-excecoes']['tsg-content-type-json-only']))].requestBody.content"
+      - "$.paths[*][?(@ && !(@['x-governanca-excecoes'] && @['x-governanca-excecoes']['tsg-content-type-json-only']))].responses[*].content"
+    then:
+      function: enumeration
+      field: "@key"
+      functionOptions:
+        values:
+          - application/json
+          - application/problem+json
+
+  tsg-operation-security-defined:
+    description: "Cada operação deve declarar security (use [] explícito para públicas)."
+    message: "Declare `security` na operação, mesmo herdando da raiz; use `[]` para operação pública."
+    severity: error
+    given: $.paths[*][get,post,put,patch,delete]
+    then:
+      field: security
+      function: defined
+
+  # ---------------------------------------------------------------
+  # Respostas
+  # ---------------------------------------------------------------
+
+  tsg-operation-has-success-response:
+    description: Operação deve declarar pelo menos uma resposta 2xx.
+    message: "A operação não declara nenhuma resposta de sucesso (200, 201, 202 ou 204)."
+    severity: error
+    given: $.paths[*][get,post,put,patch,delete].responses
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          anyOf:
+            - required: ["200"]
+            - required: ["201"]
+            - required: ["202"]
+            - required: ["204"]
+            - required: ["2XX"]
+
+  tsg-error-uses-problem-details:
+    description: Respostas 4xx/5xx devem usar application/problem+json (RFC 9457).
+    message: "Resposta de erro sem application/problem+json."
+    severity: error
+    given: $.paths[*][*].responses[?(@property.match(/^[45]/))].content
+    then:
+      field: application/problem+json
+      function: truthy
+
+  tsg-problem-details-schema:
+    description: Schemas de erro devem conter pelo menos type, title e status.
+    message: "Schema de erro sem {{property}}."
+    severity: warn
+    given: $.paths[*][*].responses[?(@property.match(/^[45]/))].content.application/problem+json.schema.properties
+    then:
+      - field: type
+        function: truthy
+      - field: title
+        function: truthy
+      - field: status
+        function: truthy
+
+  # ---------------------------------------------------------------
+  # Paginação e documentação
+  # ---------------------------------------------------------------
+
+  # Aceita exceção.
+  tsg-collection-pagination-params:
+    description: GET de coleção deve aceitar _page e _size, salvo exceção registrada.
+    message: "GET de coleção sem _page/_size. Se não couber, registre em x-governanca-excecoes.tsg-collection-pagination-params com o motivo."
+    severity: warn
+    given: "$.paths[?(@property.match(/s$/))][?(@property === 'get' && !(@['x-governanca-excecoes'] && @['x-governanca-excecoes']['tsg-collection-pagination-params']))].parameters"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          contains:
+            type: object
+            properties:
+              name:
+                enum: [_page, _size]
+
+  tsg-info-contact-defined:
+    description: info.contact deve ser preenchido.
+    message: "Preencha info.contact com o time dono da API."
+    severity: error
+    given: $.info
+    then:
+      field: contact
+      function: truthy
+
+  tsg-operation-must-be-documented:
+    description: Operações devem ter summary, description e operationId.
+    message: "Operação sem {{property}}."
+    severity: warn
+    given: $.paths[*][get,post,put,patch,delete]
+    then:
+      - field: summary
+        function: truthy
+      - field: description
+        function: truthy
+      - field: operationId
+        function: truthy
+
+  # ---------------------------------------------------------------
+  # Regras da POC (plano 01-poc-fake-nfe.md, FNFE-006)
+  # ---------------------------------------------------------------
+
+  fnfe-operation-id-required:
+    description: Toda operação precisa de operationId; Collections, SDKs e o Catalog dependem dele.
+    message: "Operação sem operationId."
+    severity: error
+    given: $.paths[*][get,post,put,patch,delete]
+    then:
+      field: operationId
+      function: truthy
+
+  fnfe-error-response-documented:
+    description: Toda operação documenta ao menos uma resposta de erro (4xx ou 5xx).
+    message: "A operação não documenta nenhuma resposta de erro (4xx ou 5xx)."
+    severity: error
+    given: $.paths[*][get,post,put,patch,delete].responses
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          not:
+            propertyNames:
+              not:
+                pattern: "^[45]"
+
+  fnfe-operation-tags:
+    description: Operações devem ter tag, que organiza a documentação e a Collection gerada.
+    message: "Operação sem tags."
+    severity: warn
+    given: $.paths[*][get,post,put,patch,delete]
+    then:
+      field: tags
+      function: truthy
+
+  fnfe-request-body-examples:
+    description: Corpos JSON de requisição devem trazer exemplo, que alimenta mock e documentação.
+    message: "Corpo de requisição sem `example` ou `examples`."
+    severity: warn
+    given: $.paths[*][post,put,patch].requestBody.content.application/json
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          anyOf:
+            - required: [example]
+            - required: [examples]
+
+  fnfe-correlation-id-documented:
+    description: Operações documentam o header X-Correlation-Id.
+    message: "Operação sem o parâmetro X-Correlation-Id."
+    severity: warn
+    given: $.paths[*][get,post,put,patch,delete]
+    then:
+      field: parameters
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          contains:
+            type: object
+            required: [name, in]
+            properties:
+              name:
+                const: X-Correlation-Id
+              in:
+                const: header
+
+  fnfe-exception-allowed-rule:
+    description: Só regras que aceitam exceção podem aparecer em x-governanca-excecoes.
+    message: "A regra {{property}} não aceita exceção."
+    severity: error
+    given: "$.paths[*][*]['x-governanca-excecoes']"
+    then:
+      field: "@key"
+      function: enumeration
+      functionOptions:
+        values:
+          - tsg-content-type-json-only
+          - tsg-collection-pagination-params
+
+  fnfe-exception-has-reason:
+    description: Toda exceção traz o motivo, com pelo menos 20 caracteres.
+    message: "Exceção sem motivo suficiente."
+    severity: error
+    given: "$.paths[*][*]['x-governanca-excecoes'][*]"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^.{20,}$"

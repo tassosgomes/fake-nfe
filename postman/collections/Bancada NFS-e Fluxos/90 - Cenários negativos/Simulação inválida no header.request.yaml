@@ -1,0 +1,34 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/emitir'
+order: 9000
+headers:
+- key: Content-Type
+  value: application/json
+- key: X-Simulacao
+  value: talvez:10
+body:
+  type: json
+  content: |-
+    {
+      "tomador": {
+        "nome": "Cliente Exemplo LTDA",
+        "cnpj": "19131243000197",
+        "email": "financeiro@cliente.test"
+      },
+      "servico": {
+        "descricao": "Aula de integração fiscal",
+        "codigo": "010700"
+      },
+      "valores": {
+        "total": 1500,
+        "aliquotaIss": 2
+      },
+      "competencia": "2026-03",
+      "referencia": "POC-{{runId}}"
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 400, "code": "simulacao_invalida", "campo": "simulacao"}');

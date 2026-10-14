@@ -1,0 +1,3 @@
+$kind: collection
+description: Cadastro de endpoints e histórico de entregas. Superfície pública para integradores (chave de projeto).
+order: 3000

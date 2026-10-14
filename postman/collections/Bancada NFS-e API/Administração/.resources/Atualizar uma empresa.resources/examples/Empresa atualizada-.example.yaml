@@ -1,0 +1,101 @@
+$kind: http-example
+name: Empresa atualizada.
+request:
+  url: "{{baseUrl}}/org/projects/:id"
+  method: PATCH
+  headers:
+    - key: x-api-key
+      value: <API Key>
+      description: "Added as a part of security scheme: apikey"
+    - key: X-Correlation-Id
+      value: aula-123
+      disabled: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+    - key: Accept
+      value: application/json
+  pathVariables:
+    - key: id
+      value: prj_9a8b7c6d5e4f40312a1b2c3d4e5f6071
+      disabled: false
+      description: (Required) Identificador da empresa (`prj_…`).
+  body:
+    type: json
+    content: |-
+      {
+        "email": "fiscal@filial.test"
+      }
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    - key: X-Correlation-Id
+      value: string
+      disabled: false
+      description: Correlation ID recebido ou gerado pela bancada.
+    - key: X-Ambiente
+      value: string
+      disabled: false
+      description: Sempre `estudo`.
+    - key: X-Aviso
+      value: string
+      disabled: false
+      description: Sempre `sem-valor-fiscal`.
+    - key: Content-Type
+      value: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "updated": true,
+        "id": "prj_",
+        "project": {
+          "id": "prj_",
+          "name": "string",
+          "cnpj": "87792633025727",
+          "razaoSocial": "string",
+          "serieNfse": "string",
+          "ultimoNumeroNfse": 3168,
+          "proximoNumeroNfse": 3701,
+          "active": true,
+          "hasCertificate": false,
+          "hasLogo": false,
+          "createdAt": "1975-06-23T10:08:10.803Z",
+          "updatedAt": "1974-06-12T23:38:05.945Z",
+          "inscricaoMunicipal": "string",
+          "inscricaoEstadual": "string",
+          "regimeTributario": "string",
+          "codigoMunicipio": "string",
+          "email": "string",
+          "telefone": "string",
+          "description": "string",
+          "endereco": {
+            "logradouro": "string",
+            "numero": "string",
+            "complemento": "string",
+            "bairro": "string",
+            "cidade": "string",
+            "uf": "st",
+            "cep": "string",
+            "pais": "st"
+          },
+          "codigoTributacao": "string",
+          "tributacaoIss": 4110,
+          "aliquotaSimples": 3960.1589553058147,
+          "regimeIss": 7563,
+          "codigoServicoSp": "string",
+          "cnae": "string",
+          "basicAuthUsuario": "string",
+          "hasBasicAuthSenha": true,
+          "defaultNbs": "string",
+          "defaultCstIbscbs": "string",
+          "defaultClassificacao": "string",
+          "defaultIndicador": "string",
+          "cstPisCofins": "string",
+          "aliquotaPis": 5304.726513568312,
+          "aliquotaCofins": 9117.878745310009,
+          "certFileName": "string",
+          "certUploadedAt": "1988-01-18T14:51:29.970Z",
+          "hasApiKey": false
+        }
+      }
+order: 1000

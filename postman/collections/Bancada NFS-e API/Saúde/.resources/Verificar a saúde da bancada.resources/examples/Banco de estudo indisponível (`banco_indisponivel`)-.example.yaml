@@ -1,0 +1,43 @@
+$kind: http-example
+name: Banco de estudo indisponível (`banco_indisponivel`).
+request:
+  url: "{{baseUrl}}/health"
+  method: GET
+  headers:
+    - key: x-api-key
+      value: <API Key>
+      description: "Added as a part of security scheme: apikey"
+    - key: X-Correlation-Id
+      value: aula-123
+      disabled: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+    - key: Accept
+      value: application/problem+json
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 503
+  statusText: Service Unavailable
+  headers:
+    - key: X-Correlation-Id
+      value: string
+      disabled: false
+      description: Correlation ID recebido ou gerado pela bancada.
+    - key: Content-Type
+      value: application/problem+json
+  body:
+    type: json
+    content: |-
+      {
+        "type": "urn:bancada-nfse:problema:nao_encontrado",
+        "title": "string",
+        "status": 422,
+        "detail": "string",
+        "instance": "string",
+        "code": "nao_encontrado",
+        "campo": "string",
+        "correlationId": "string",
+        "aviso": "string"
+      }
+order: 2000

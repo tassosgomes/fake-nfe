@@ -1,0 +1,9 @@
+$kind: http-request
+method: DELETE
+url: '{{baseUrl}}/org/projects/{{tempProjectId}}/api-keys/{{tempKeyId}}'
+order: 3000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "ChaveRevogada"}');

@@ -1,0 +1,9 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/invoices/{{rejectedInvoiceId}}/pdf'
+order: 13000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 409, "code": "documento_indisponivel"}');

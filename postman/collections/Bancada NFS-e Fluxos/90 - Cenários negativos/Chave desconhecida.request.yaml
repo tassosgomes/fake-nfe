@@ -1,0 +1,42 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/emitir'
+order: 2000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "tomador": {
+        "nome": "Cliente Exemplo LTDA",
+        "cnpj": "19131243000197",
+        "email": "financeiro@cliente.test"
+      },
+      "servico": {
+        "descricao": "Aula de integração fiscal",
+        "codigo": "010700"
+      },
+      "valores": {
+        "total": 1500,
+        "aliquotaIss": 2
+      },
+      "competencia": "2026-03",
+      "referencia": "POC-{{runId}}",
+      "simulacao": {
+        "resultado": "sucesso",
+        "atrasoMs": 0
+      }
+    }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: ntaas_chave-que-nao-existe
+    in: header
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 401, "code": "nao_autorizado"}');

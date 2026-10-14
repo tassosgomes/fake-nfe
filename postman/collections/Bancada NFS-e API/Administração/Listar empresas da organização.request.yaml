@@ -1,0 +1,33 @@
+$kind: http-request
+description: Lista as empresas da organização, paginadas. Sem `active`, só as ativas.
+url: "{{baseUrl}}/org/projects?active=true&page=1&limit=20"
+method: GET
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Accept
+    value: application/json
+queryParams:
+  - key: active
+    value: "true"
+    disabled: false
+    description: "`false` ou `all` incluem empresas desativadas. Sem o parâmetro, só as ativas."
+  - key: page
+    value: "1"
+    disabled: false
+    description: Página, a partir de 1.
+  - key: limit
+    value: "20"
+    disabled: false
+    description: Itens por página.
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
+settings: {}
+examples: ./.resources/Listar empresas da organização.resources/examples
+order: 1000

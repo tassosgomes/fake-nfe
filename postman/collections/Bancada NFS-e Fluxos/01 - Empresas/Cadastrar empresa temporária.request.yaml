@@ -1,0 +1,42 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/org/projects'
+order: 2000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Filial POC {{runId}}",
+      "cnpj": "{{tempCnpj}}",
+      "razaoSocial": "Filial de Estudo POC LTDA",
+      "codigoMunicipio": "3550308",
+      "serieNfse": "7"
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 201, "schema": "Empresa"}');
+    // CNPJ sintético com dígitos verificadores válidos.
+    const digits = Array.from({ length: 8 }, () => Math.floor(Math.random() * 10)).join('') + '0001';
+    const dv = (base, factors) => {
+      const sum = base.split('').reduce((acc, d, i) => acc + Number(d) * factors[i], 0) % 11;
+      return sum < 2 ? 0 : 11 - sum;
+    };
+    const first = dv(digits, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    const second = dv(digits + first, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+    pm.collectionVariables.set('tempCnpj', `${digits}${first}${second}`);
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    const body = pm.response.json();
+    pm.collectionVariables.set('tempProjectId', body.id);
+    pm.test('empresa nasce ativa, sem chave e na série pedida', () => {
+      pm.expect(body.active).to.be.true;
+      pm.expect(body.cnpj).to.eql(pm.collectionVariables.get('tempCnpj'));
+      pm.expect(body.serieNfse).to.eql('7');
+      pm.expect(body.proximoNumeroNfse).to.eql(1);
+    });

@@ -1,0 +1,34 @@
+$kind: http-request
+description: A logo aparece só no PDF de estudo. Aceita PNG, JPEG ou WebP de até 500 KB.
+url: "{{baseUrl}}/org/projects/:id/logo"
+method: POST
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Content-Type
+    value: multipart/form-data
+  - key: Accept
+    value: application/json
+pathVariables:
+  - key: id
+    value: prj_9a8b7c6d5e4f40312a1b2c3d4e5f6071
+    disabled: false
+    description: (Required) Identificador da empresa (`prj_…`).
+body:
+  type: formdata
+  content:
+    - type: text
+      key: file
+      value: string
+      description: (Required) Imagem PNG, JPEG ou WebP.
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
+settings: {}
+examples: ./.resources/Enviar a logo da empresa.resources/examples
+order: 12000

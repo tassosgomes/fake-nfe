@@ -1,0 +1,22 @@
+name: Local
+values:
+  - key: baseUrl
+    value: http://localhost:3000/api/v1
+    enabled: true
+    type: default
+    description: Bancada local (npm run dev ou npm start).
+  - key: projectId
+    value: ''
+    enabled: true
+    type: default
+    description: Empresa criada pelo seed. Preenchida pelo arquivo de data/ gerado por npm run seed:poc.
+  - key: apiKey
+    value: ''
+    enabled: true
+    type: secret
+    description: Chave de projeto (ntaas_). Nunca versionar o valor.
+  - key: orgToken
+    value: ''
+    enabled: true
+    type: secret
+    description: Token de organização (ntaas_org_). Nunca versionar o valor.

@@ -1,0 +1,27 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/cancelar'
+order: 1000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "invoiceId": "{{invoiceId}}",
+      "motivo": "Serviço lançado em duplicidade na competência",
+      "simulacao": {
+        "resultado": "sucesso",
+        "atrasoMs": 0
+      }
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 202, "schema": "CancelamentoAceito"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('cancelamento entra na fila', () => pm.expect(pm.response.json().status).to.eql('cancel_queued'));

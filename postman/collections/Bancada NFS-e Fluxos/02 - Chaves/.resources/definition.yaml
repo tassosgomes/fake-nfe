@@ -1,0 +1,9 @@
+$kind: collection
+description: 'Ciclo de vida de uma chave de projeto: criar, listar sem expor, revogar e provar a revogação.'
+order: 3000
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: '{{orgToken}}'
+    in: header

@@ -1,0 +1,49 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/emitir'
+order: 1000
+headers:
+- key: Content-Type
+  value: application/json
+- key: Idempotency-Key
+  value: poc-{{runId}}-emissao
+body:
+  type: json
+  content: |-
+    {
+      "tomador": {
+        "nome": "Cliente Exemplo LTDA",
+        "cnpj": "19131243000197",
+        "email": "financeiro@cliente.test"
+      },
+      "servico": {
+        "descricao": "Aula de integração fiscal",
+        "codigo": "010700"
+      },
+      "valores": {
+        "total": 1500,
+        "aliquotaIss": 2
+      },
+      "competencia": "2026-03",
+      "referencia": "POC-{{runId}}",
+      "simulacao": {
+        "resultado": "sucesso",
+        "atrasoMs": 0
+      }
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 202, "schema": "EmissaoAceita"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    const body = pm.response.json();
+    pm.collectionVariables.set('invoiceId', body.invoiceId);
+    pm.test('nota entra na fila sem estar autorizada', () => {
+      pm.expect(body.status).to.eql('queued');
+      pm.expect(body.cenario).to.eql('sucesso');
+      pm.expect(body.origemCenario).to.eql('forcado');
+      pm.expect(body.pollUrl).to.eql(`/api/v1/invoices/${body.invoiceId}/status`);
+    });

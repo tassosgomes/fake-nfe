@@ -1,0 +1,33 @@
+$kind: http-request
+description: Atualiza só os campos enviados. O CNPJ não pode ser alterado.
+url: "{{baseUrl}}/org/projects/:id"
+method: PATCH
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+pathVariables:
+  - key: id
+    value: prj_9a8b7c6d5e4f40312a1b2c3d4e5f6071
+    disabled: false
+    description: (Required) Identificador da empresa (`prj_…`).
+body:
+  type: json
+  content: |-
+    {
+      "email": "fiscal@filial.test"
+    }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
+settings: {}
+examples: ./.resources/Atualizar uma empresa.resources/examples
+order: 4000

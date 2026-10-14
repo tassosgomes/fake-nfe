@@ -1,0 +1,40 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/emitir'
+order: 12000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "tomador": {
+        "nome": "Cliente Exemplo LTDA",
+        "cnpj": "19131243000197",
+        "email": "financeiro@cliente.test"
+      },
+      "servico": {
+        "descricao": "Aula de integração fiscal",
+        "codigo": "010700"
+      },
+      "valores": {
+        "total": 1500,
+        "aliquotaIss": 2
+      },
+      "competencia": "2026-03",
+      "referencia": "POC-{{runId}}-rejeitada",
+      "simulacao": {
+        "resultado": "rejeicao",
+        "atrasoMs": 0
+      }
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 202, "schema": "EmissaoAceita"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.collectionVariables.set('rejectedInvoiceId', pm.response.json().invoiceId);

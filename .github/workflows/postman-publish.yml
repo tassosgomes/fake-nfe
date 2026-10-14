@@ -1,0 +1,145 @@
+name: Postman — publicação após merge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - "governance/**"
+      - "postman/**"
+      - ".postman/**"
+      - "app/**"
+      - "lib/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/postman-publish.yml"
+  workflow_dispatch:
+
+# Uma publicação por vez, sem cancelar a que está em andamento.
+concurrency:
+  group: postman-publish
+  cancel-in-progress: false
+
+env:
+  POSTMAN_CLI_VERSION: 1.74.0
+  NODE_VERSION: "24"
+
+jobs:
+  publicar:
+    name: Gates com reporting e push do workspace
+    # Só no repositório de origem: forks não têm o secret nem o workspace.
+    if: github.repository == 'tassosgomes/fake-nfe'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      DATABASE_PATH: ${{ github.workspace }}/data/ci.sqlite
+      REPORT_DIR: ${{ github.workspace }}/postman-report
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Instalar Postman CLI ${{ env.POSTMAN_CLI_VERSION }}
+        run: npm install --global "postman-cli@${POSTMAN_CLI_VERSION}" && postman --version
+
+      - name: Login no Postman
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        run: |
+          if [ -z "${POSTMAN_API_KEY}" ]; then
+            echo "::error::Secret POSTMAN_API_KEY ausente."
+            exit 1
+          fi
+          postman login --with-api-key "${POSTMAN_API_KEY}"
+
+      # Os mesmos gates do PR, agora reportando ao API Catalog.
+      - name: Sintaxe do contrato
+        run: postman spec lint contracts/openapi.yaml --issueType syntax --fail-severity warning --report-events
+
+      - name: Governança do contrato
+        run: postman spec lint contracts/openapi.yaml --ruleset governance/openapi.spectral.yaml --fail-severity error --report-events
+
+      - run: npm test
+
+      - run: npm run build
+
+      - name: Subir a bancada
+        run: |
+          mkdir -p data
+          setsid nohup npm start -- -p 3000 > data/server.log 2>&1 &
+          echo $! > data/server.pid
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/v1/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::A bancada não respondeu ao health check em 60 s."
+          cat data/server.log
+          exit 1
+
+      - name: Rodar a Collection de fluxos com reporting
+        env:
+          POSTMAN_REPORT_EVENTS: "1"
+        run: |
+          set -o pipefail
+          mkdir -p "${REPORT_DIR}"
+          npm run postman:e2e 2>&1 | tee "${REPORT_DIR}/e2e.log"
+
+      - name: Encerrar a bancada
+        if: always()
+        run: |
+          if [ -f data/server.pid ]; then
+            kill -- "-$(cat data/server.pid)" || true
+          fi
+
+      - name: Prévia do push
+        run: postman workspace diff
+
+      # Estratégia padrão: cria e atualiza, nunca apaga na cloud.
+      - name: Push do workspace
+        run: postman workspace push --yes
+
+      # Entidade nova ganha ID de cloud no manifest. Sem voltar para o Git, o próximo push
+      # criaria uma duplicata.
+      - name: Versionar IDs novos do manifest
+        run: |
+          if git diff --quiet -- .postman/resources.yaml; then
+            echo "Manifest sem IDs novos."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .postman/resources.yaml
+          git commit -m "chore(postman): record cloud ids after publish"
+          git push
+
+      - name: Conferir que não há chave no relatório
+        if: always()
+        run: |
+          if [ -d "${REPORT_DIR}" ]; then
+            find "${REPORT_DIR}" -type f -exec sed -i -E 's/ntaas_(org_)?[A-Za-z0-9_-]+/ntaas_\1<REDACTED>/g' {} +
+            if grep -rqE 'ntaas_(org_)?[a-f0-9]{12,}' "${REPORT_DIR}"; then
+              echo "::error::Sobrou chave sem máscara no relatório."
+              exit 1
+            fi
+          fi
+
+      - name: Publicar relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postman-publish-report
+          path: |
+            postman-report/
+            data/server.log
+          if-no-files-found: ignore
+          retention-days: 30

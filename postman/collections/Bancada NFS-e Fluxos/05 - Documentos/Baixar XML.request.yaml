@@ -1,0 +1,19 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/invoices/{{invoiceId}}/xml'
+order: 1000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('XML de estudo da nota', () => {
+      pm.expect(pm.response.headers.get('Content-Type')).to.include('application/xml');
+      pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment');
+      const xml = pm.response.text();
+      pm.expect(xml).to.include('<NfseEstudo');
+      pm.expect(xml).to.include(pm.collectionVariables.get('numeroNfse'));
+    });
