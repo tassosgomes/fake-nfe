@@ -76,7 +76,6 @@ paths:
 
   /emitir:
     post:
-      operationId: emitirNfse
       tags: [Notas]
       summary: Emitir uma NFS-e de estudo
       security:
