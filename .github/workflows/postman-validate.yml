@@ -104,7 +104,8 @@ jobs:
       - name: Subir a bancada
         run: |
           mkdir -p data
-          nohup npm start -- -p 3000 > data/server.log 2>&1 &
+          # Sessão própria: o next-server é neto do npm, e o cleanup encerra o grupo inteiro.
+          setsid nohup npm start -- -p 3000 > data/server.log 2>&1 &
           echo $! > data/server.pid
           for attempt in $(seq 1 60); do
             if curl -fsS http://localhost:3000/api/v1/health > /dev/null; then
@@ -119,6 +120,19 @@ jobs:
 
       - name: Rodar a Collection de fluxos
         run: npm run postman:e2e -- --output "${REPORT_DIR}"
+
+      - name: Mascarar chaves no relatório
+        if: always()
+        # O relatório do --output grava os headers com as chaves completas, mesmo com a variável
+        # marcada como secret. As chaves são de um banco descartável, mas o repositório é público.
+        run: |
+          if [ -d "${REPORT_DIR}" ]; then
+            find "${REPORT_DIR}" -type f -exec sed -i -E 's/ntaas_(org_)?[A-Za-z0-9_-]+/ntaas_\1<REDACTED>/g' {} +
+            if grep -rqE 'ntaas_(org_)?[a-f0-9]{12,}' "${REPORT_DIR}"; then
+              echo "::error::Sobrou chave sem máscara no relatório."
+              exit 1
+            fi
+          fi
 
       - name: Publicar relatório
         if: always()
@@ -135,6 +149,5 @@ jobs:
         if: always()
         run: |
           if [ -f data/server.pid ]; then
-            pkill -P "$(cat data/server.pid)" || true
-            kill "$(cat data/server.pid)" || true
+            kill -- "-$(cat data/server.pid)" || true
           fi
