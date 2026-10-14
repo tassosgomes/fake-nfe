@@ -119,12 +119,16 @@ jobs:
           exit 1
 
       - name: Rodar a Collection de fluxos
-        run: npm run postman:e2e -- --output "${REPORT_DIR}"
+        # Sem --output: o relatório em YAML exige login e grava as chaves completas.
+        # O log do console mostra cada request e assertion, e só os prefixos das chaves.
+        run: |
+          set -o pipefail
+          mkdir -p "${REPORT_DIR}"
+          npm run postman:e2e 2>&1 | tee "${REPORT_DIR}/e2e.log"
 
-      - name: Mascarar chaves no relatório
+      - name: Conferir que não há chave no relatório
         if: always()
-        # O relatório do --output grava os headers com as chaves completas, mesmo com a variável
-        # marcada como secret. As chaves são de um banco descartável, mas o repositório é público.
+        # Defesa em profundidade: o repositório é público e o artefato pode ser baixado.
         run: |
           if [ -d "${REPORT_DIR}" ]; then
             find "${REPORT_DIR}" -type f -exec sed -i -E 's/ntaas_(org_)?[A-Za-z0-9_-]+/ntaas_\1<REDACTED>/g' {} +
