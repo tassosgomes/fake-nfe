@@ -6,7 +6,8 @@
     "build": "next build",
     "start": "next start",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:poc": "tsx scripts/seed-poc.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

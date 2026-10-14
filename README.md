@@ -12,3 +12,11 @@ Abra `http://localhost:3000`. A documentação está em [`docs/`](docs/visao-ger
 ```bash
 npm test
 ```
+
+Para testar a API por fora (Postman, curl ou CI), crie uma organização descartável com chaves:
+
+```bash
+npm run seed:poc
+```
+
+O script grava `data/poc.postman_environment.json` com `baseUrl`, `apiKey` e `orgToken`. A pasta `data/` não vai para o Git. Use `SEED_BASE_URL` e `SEED_OUTPUT` para mudar a URL e o arquivo, e `DATABASE_PATH` para apontar o mesmo banco do servidor.

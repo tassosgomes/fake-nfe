@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { apiKeys, idempotency, organizations, projects } from "../db/schema";
@@ -16,16 +17,55 @@ export function studyJson(data: unknown, status = 200, extra?: HeadersInit): Res
   return Response.json(data, { status, headers });
 }
 
-export function studyError(error: StudyError): Response {
+export const CORRELATION_HEADER = "X-Correlation-Id";
+
+const CORRELATION_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+
+export function correlationIdOf(req: Request): string {
+  const incoming = req.headers.get(CORRELATION_HEADER)?.trim() ?? "";
+  return CORRELATION_PATTERN.test(incoming) ? incoming : randomUUID();
+}
+
+function withCorrelation(response: Response, correlationId: string): Response {
+  response.headers.set(CORRELATION_HEADER, correlationId);
+  return response;
+}
+
+const PROBLEM_TITLES: Record<number, string> = {
+  400: "Requisição inválida",
+  401: "Não autenticado",
+  403: "Acesso negado",
+  404: "Não encontrado",
+  409: "Conflito",
+  413: "Conteúdo grande demais",
+  422: "Regra de negócio violada",
+  429: "Limite de requisições atingido",
+  500: "Erro interno",
+  503: "Serviço indisponível",
+};
+
+// RFC 9457. `code`, `campo`, `correlationId` e `aviso` são membros de extensão.
+export function studyError(
+  error: StudyError,
+  context: { instance: string; correlationId: string },
+  extra?: HeadersInit,
+): Response {
+  const headers = new Headers(extra);
+  headers.set("Content-Type", "application/problem+json");
   return studyJson(
     {
-      type: "erro_de_estudo",
+      type: `urn:bancada-nfse:problema:${error.code}`,
+      title: PROBLEM_TITLES[error.status] ?? "Erro",
+      status: error.status,
+      detail: error.message,
+      instance: context.instance,
       code: error.code,
-      message: error.message,
       campo: error.campo ?? null,
+      correlationId: context.correlationId,
       aviso: STUDY_AVISO,
     },
     error.status,
+    headers,
   );
 }
 
@@ -131,19 +171,35 @@ async function run<T extends ProjectAuth | OrgAuth>(
   handler: (auth: T) => Promise<Response>,
 ): Promise<Response> {
   const started = Date.now();
+  const context = { instance: pathOf(req), correlationId: correlationIdOf(req) };
   let auth: T | null = null;
   startSweeper();
   try {
     auth = authorize();
-    const limited = enforceRate(auth, req, started);
-    if (limited) return limited;
+    const limited = enforceRate(auth, context);
+    if (limited) return withCorrelation(logResponse(req, toLog(auth), started, limited), context.correlationId);
     const response = await handler(auth);
-    return logResponse(req, toLog(auth), started, response);
+    return withCorrelation(logResponse(req, toLog(auth), started, response), context.correlationId);
   } catch (error) {
-    const response =
-      error instanceof StudyError ? studyError(error) : studyError(new StudyError(500, "erro_interno", "Falha interna da bancada."));
-    if (!(error instanceof StudyError)) console.error(error);
-    return logResponse(req, auth ? toLog(auth) : null, started, response);
+    const response = studyError(asStudyError(error), context);
+    return withCorrelation(logResponse(req, auth ? toLog(auth) : null, started, response), context.correlationId);
+  }
+}
+
+function asStudyError(error: unknown): StudyError {
+  if (error instanceof StudyError) return error;
+  console.error(error);
+  return new StudyError(500, "erro_interno", "Falha interna da bancada.");
+}
+
+// Rotas sem autenticação, rate limit nem log de acesso, como o health check.
+export async function withPublic(req: Request, handler: (req: Request) => Promise<Response> | Response): Promise<Response> {
+  const context = { instance: pathOf(req), correlationId: correlationIdOf(req) };
+  startSweeper();
+  try {
+    return withCorrelation(await handler(req), context.correlationId);
+  } catch (error) {
+    return withCorrelation(studyError(asStudyError(error), context), context.correlationId);
   }
 }
 
@@ -189,16 +245,16 @@ function authorizeOrg(req: Request, scope: string): OrgAuth {
   return { kind: "org", tokenPrefix: key.keyPrefix, keyId: key.id, organization, scopes };
 }
 
-function enforceRate(auth: ProjectAuth | OrgAuth, req: Request, started: number): Response | null {
+function enforceRate(
+  auth: ProjectAuth | OrgAuth,
+  context: { instance: string; correlationId: string },
+): Response | null {
   const key = getDb().db.select().from(apiKeys).where(eq(apiKeys.id, auth.keyId)).get();
   const limit = key?.rateLimitPerMinute ?? 60;
   if (countRecent(auth.keyId, Date.now() - 60_000) < limit) return null;
-  const response = studyJson(
-    { type: "erro_de_estudo", code: "rate_limit", message: "Limite de requisições por minuto atingido.", aviso: STUDY_AVISO },
-    429,
-    { "Retry-After": "60" },
-  );
-  return logResponse(req, toLog(auth), started, response);
+  return studyError(new StudyError(429, "rate_limit", "Limite de requisições por minuto atingido."), context, {
+    "Retry-After": "60",
+  });
 }
 
 async function readBody(req: Request): Promise<{ body: unknown; raw: string; idemKey: string | null }> {
