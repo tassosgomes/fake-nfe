@@ -1,0 +1,29 @@
+$kind: http-request
+description: A chave para de funcionar na hora e passa a receber `403 chave_revogada`.
+url: "{{baseUrl}}/org/projects/:id/api-keys/:keyId"
+method: DELETE
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Accept
+    value: application/json
+pathVariables:
+  - key: id
+    value: prj_9a8b7c6d5e4f40312a1b2c3d4e5f6071
+    disabled: false
+    description: (Required) Identificador da empresa (`prj_…`).
+  - key: keyId
+    value: key_
+    disabled: false
+    description: (Required) Identificador da chave (`key_…`).
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
+settings: {}
+examples: ./.resources/Revogar uma chave de projeto.resources/examples
+order: 10000

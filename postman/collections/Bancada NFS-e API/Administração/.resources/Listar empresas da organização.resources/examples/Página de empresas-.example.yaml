@@ -1,0 +1,75 @@
+$kind: http-example
+name: Página de empresas.
+request:
+  url: "{{baseUrl}}/org/projects?active=false&page=1&limit=20"
+  method: GET
+  headers:
+    - key: x-api-key
+      value: <API Key>
+      description: "Added as a part of security scheme: apikey"
+    - key: X-Correlation-Id
+      value: aula-123
+      disabled: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+    - key: Accept
+      value: application/json
+  queryParams:
+    active: "false"
+    page: "1"
+    limit: "20"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    - key: X-Correlation-Id
+      value: string
+      disabled: false
+      description: Correlation ID recebido ou gerado pela bancada.
+    - key: X-Ambiente
+      value: string
+      disabled: false
+      description: Sempre `estudo`.
+    - key: X-Aviso
+      value: string
+      disabled: false
+      description: Sempre `sem-valor-fiscal`.
+    - key: Content-Type
+      value: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "data": [
+          {
+            "id": "prj_",
+            "name": "string",
+            "cnpj": "83592296476287",
+            "codigoMunicipio": "string",
+            "active": false,
+            "hasCertificate": true,
+            "hasApiKey": true,
+            "proximoNumeroNfse": 7776,
+            "createdAt": "2008-11-25T00:44:00.030Z"
+          },
+          {
+            "id": "prj_",
+            "name": "string",
+            "cnpj": "38857826358566",
+            "codigoMunicipio": "string",
+            "active": true,
+            "hasCertificate": true,
+            "hasApiKey": false,
+            "proximoNumeroNfse": 7988,
+            "createdAt": "1960-02-08T10:07:29.949Z"
+          }
+        ],
+        "pagination": {
+          "page": 9308,
+          "limit": 35,
+          "total": 6221
+        }
+      }
+order: 1000

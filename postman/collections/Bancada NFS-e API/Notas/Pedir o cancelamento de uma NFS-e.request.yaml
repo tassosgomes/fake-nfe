@@ -1,0 +1,39 @@
+$kind: http-request
+description: |
+  Só uma nota `issued` entra na fila de cancelamento. Se a prefeitura simulada recusa, a nota volta para `issued`
+  e o status mostra `cancelamentoRecusado`.
+url: "{{baseUrl}}/cancelar"
+method: POST
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Idempotency-Key
+    value: emissao-os-1
+    disabled: false
+    description: |
+      Mesma chave e mesmo corpo devolvem a primeira resposta. Mesma chave com outro corpo devolve `409 idempotency_conflito`.
+  - key: X-Simulacao
+    value: sucesso:0
+    disabled: false
+    description: |
+      Força o cenário da fila, como `resultado:atrasoMs` (ex. `timeout:1500`) ou JSON. O campo `simulacao` do corpo vence este header.
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "invoiceId": "inv_2f6c1b0e9a4d4c7f8e3a1b2c3d4e5f60",
+      "motivo": "Serviço prestado em duplicidade na mesma competência",
+      "simulacao": {
+        "resultado": "sucesso",
+        "atrasoMs": 0
+      }
+    }
+settings: {}
+examples: ./.resources/Pedir o cancelamento de uma NFS-e.resources/examples
+order: 5000

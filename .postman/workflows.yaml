@@ -1,0 +1,6 @@
+workflows:
+  syncSpecToCollection:
+    - spec: ../contracts/openapi.yaml
+      collection: ../postman/collections/Bancada NFS-e API
+      options:
+        folderStrategy: Tags

@@ -1,0 +1,31 @@
+$kind: http-request
+description: |
+  Grava um domínio `https` para os arquivos de estudo. Nenhum DNS é consultado.
+  Com `simularVerificacao: true`, o status muda direto para `verified`.
+url: "{{baseUrl}}/org/settings"
+method: PATCH
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "storageBaseUrl": "https://arquivos.estudo.test",
+      "simularVerificacao": false
+    }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
+settings: {}
+examples: ./.resources/Configurar o domínio de arquivos.resources/examples
+order: 15000

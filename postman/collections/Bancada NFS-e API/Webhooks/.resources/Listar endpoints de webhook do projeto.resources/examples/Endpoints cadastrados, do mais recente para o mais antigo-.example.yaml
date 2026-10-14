@@ -1,0 +1,68 @@
+$kind: http-example
+name: Endpoints cadastrados, do mais recente para o mais antigo.
+request:
+  url: "{{baseUrl}}/webhooks/endpoints"
+  method: GET
+  headers:
+    - key: x-api-key
+      value: <API Key>
+      description: "Added as a part of security scheme: apikey"
+    - key: X-Correlation-Id
+      value: aula-123
+      disabled: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+    - key: Accept
+      value: application/json
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    - key: X-Correlation-Id
+      value: string
+      disabled: false
+      description: Correlation ID recebido ou gerado pela bancada.
+    - key: X-Ambiente
+      value: string
+      disabled: false
+      description: Sempre `estudo`.
+    - key: X-Aviso
+      value: string
+      disabled: false
+      description: Sempre `sem-valor-fiscal`.
+    - key: Content-Type
+      value: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "data": [
+          {
+            "id": "wh_",
+            "projectId": "prj_",
+            "url": "http://yHTnHmtbPIbVUCaSQJhAcSZxVYhy.zeoc5epT5cKdAmIm",
+            "events": [
+              "nfse.issued",
+              "nfse.documents_ready"
+            ],
+            "hasSecret": true,
+            "active": true,
+            "createdAt": "1968-08-17T04:03:03.414Z"
+          },
+          {
+            "id": "wh_",
+            "projectId": "prj_",
+            "url": "https://iXeUGnOuJclMcZeJnPTUrPgbgwYjcwsB.yjvcWKXN9qHXDrhcm0NClEUyvHxeZFgrzo9uDmZl+-WmH",
+            "events": [
+              "nfse.error",
+              "nfse.documents_ready"
+            ],
+            "hasSecret": false,
+            "active": true,
+            "createdAt": "1948-09-08T16:41:04.434Z"
+          }
+        ]
+      }
+order: 1000

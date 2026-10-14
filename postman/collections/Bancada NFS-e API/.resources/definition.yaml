@@ -1,0 +1,35 @@
+$kind: collection
+description: |-
+  Laboratório para estudar emissão, consulta, documentos, cancelamento e webhooks de uma NFS-e.
+
+  **Nada aqui tem valor fiscal.** A bancada não fala com SEFAZ, prefeitura nem provedor fiscal.
+  Toda resposta leva `X-Ambiente: estudo` e `X-Aviso: sem-valor-fiscal`.
+
+  ## Autenticação
+  O header `x-api-key` aceita dois tipos de credencial:
+
+  - **Chave de projeto** (`ntaas_…`): emissão, consulta, documentos, cancelamento e webhooks.
+  - **Token de organização** (`ntaas_org_…`): empresas, numeração, chaves, certificado, logo e configurações.
+
+  ## Erros
+  Toda falha responde `application/problem+json` (RFC 9457). O membro `code` é estável e serve para
+  decidir o que fazer; `campo` aponta o campo do corpo em erros de validação.
+
+  ## Correlation ID
+  Envie `X-Correlation-Id` para rastrear a chamada. Sem ele, ou com valor fora do padrão, a bancada gera um UUID.
+  O valor volta no header de toda resposta e no corpo dos erros.
+
+  ## Fila simulada
+  Emissão e cancelamento respondem `202` e seguem numa fila com atraso e chance de falha configuráveis.
+  Para um resultado previsível, force o cenário com `simulacao` no corpo ou com o header `X-Simulacao`.
+variables:
+  baseUrl: http://localhost:3000/api/v1
+  apiKey: ""
+auth:
+  - id: cd130d9b-6b3f-477b-9963-d5901ec69f6f
+    type: apikey
+    name: apikey auth
+    credentials:
+      key: x-api-key
+      value: "{{apiKey}}"
+      in: header

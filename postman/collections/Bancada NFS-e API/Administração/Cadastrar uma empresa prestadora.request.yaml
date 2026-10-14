@@ -1,0 +1,32 @@
+$kind: http-request
+description: O CNPJ é validado pelos dígitos e não pode repetir entre empresas ativas. O plano de estudo aceita 5 empresas ativas.
+url: "{{baseUrl}}/org/projects"
+method: POST
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Filial Centro",
+      "cnpj": "11222333000181",
+      "razaoSocial": "Filial de Estudo LTDA",
+      "codigoMunicipio": "3550308",
+      "serieNfse": "1"
+    }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
+settings: {}
+examples: ./.resources/Cadastrar uma empresa prestadora.resources/examples
+order: 2000

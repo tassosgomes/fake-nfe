@@ -1,0 +1,47 @@
+$kind: http-example
+name: Header `x-api-key` ausente ou chave desconhecida (`nao_autorizado`).
+request:
+  url: "{{baseUrl}}/org/settings"
+  method: PATCH
+  headers:
+    - key: x-api-key
+      value: <API Key>
+      description: "Added as a part of security scheme: apikey"
+    - key: X-Correlation-Id
+      value: aula-123
+      disabled: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+    - key: Accept
+      value: application/problem+json
+  body:
+    type: json
+    content: |-
+      {
+        "storageBaseUrl": "https://arquivos.estudo.test",
+        "simularVerificacao": false
+      }
+response:
+  statusCode: 401
+  statusText: Unauthorized
+  headers:
+    - key: X-Correlation-Id
+      value: string
+      disabled: false
+      description: Correlation ID recebido ou gerado pela bancada.
+    - key: Content-Type
+      value: application/problem+json
+  body:
+    type: json
+    content: |-
+      {
+        "type": "urn:bancada-nfse:problema:nao_autorizado",
+        "title": "Não autenticado",
+        "status": 401,
+        "detail": "Informe o header x-api-key.",
+        "instance": "/api/v1/emitir",
+        "code": "nao_autorizado",
+        "campo": null,
+        "correlationId": "aula-123",
+        "aviso": "Ambiente de estudo. Nenhum documento foi transmitido à SEFAZ ou a uma prefeitura. Sem valor fiscal."
+      }
+order: 3000

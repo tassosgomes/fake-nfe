@@ -1,0 +1,3 @@
+$kind: collection
+description: Gestão da organização, empresas e chaves. Superfície interna (token de organização).
+order: 4000

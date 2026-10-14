@@ -1,0 +1,55 @@
+$kind: http-request
+description: |
+  Coloca a nota na fila simulada e responde `202` com `invoiceId`. A nota nasce `queued` e **não está autorizada**
+  nesta resposta: consulte `GET /invoices/{id}/status` até `issued` ou `error`.
+
+  O tomador precisa de CNPJ, CPF ou NIF. CNPJ e CPF passam pela validação dos dígitos.
+  Campos adicionais em `tomador`, `servico` e `valores` (exportação, obra, IBS/CBS…) são guardados e reaparecem no XML.
+url: "{{baseUrl}}/emitir"
+method: POST
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Idempotency-Key
+    value: emissao-os-1
+    disabled: false
+    description: |
+      Mesma chave e mesmo corpo devolvem a primeira resposta. Mesma chave com outro corpo devolve `409 idempotency_conflito`.
+  - key: X-Simulacao
+    value: sucesso:0
+    disabled: false
+    description: |
+      Força o cenário da fila, como `resultado:atrasoMs` (ex. `timeout:1500`) ou JSON. O campo `simulacao` do corpo vence este header.
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "tomador": {
+        "nome": "Cliente Exemplo LTDA",
+        "cnpj": "19131243000197",
+        "email": "financeiro@cliente.test"
+      },
+      "servico": {
+        "descricao": "Aula de integração fiscal",
+        "codigo": "010700"
+      },
+      "valores": {
+        "total": 1500,
+        "aliquotaIss": 2
+      },
+      "competencia": "2026-03",
+      "referencia": "OS-1",
+      "simulacao": {
+        "resultado": "sucesso",
+        "atrasoMs": 0
+      }
+    }
+settings: {}
+examples: ./.resources/Emitir uma NFS-e de estudo.resources/examples
+order: 1000

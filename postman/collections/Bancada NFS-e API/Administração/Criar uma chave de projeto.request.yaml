@@ -1,0 +1,34 @@
+$kind: http-request
+description: A chave completa aparece **uma única vez**, nesta resposta.
+url: "{{baseUrl}}/org/projects/:id/api-keys"
+method: POST
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+pathVariables:
+  - key: id
+    value: prj_9a8b7c6d5e4f40312a1b2c3d4e5f6071
+    disabled: false
+    description: (Required) Identificador da empresa (`prj_…`).
+body:
+  type: json
+  content: |-
+    {
+      "name": "integracao-erp",
+      "rateLimitPerMinute": 60
+    }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
+settings: {}
+examples: ./.resources/Criar uma chave de projeto.resources/examples
+order: 9000

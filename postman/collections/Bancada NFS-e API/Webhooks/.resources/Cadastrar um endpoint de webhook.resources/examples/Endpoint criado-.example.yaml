@@ -1,0 +1,63 @@
+$kind: http-example
+name: Endpoint criado.
+request:
+  url: "{{baseUrl}}/webhooks/endpoints"
+  method: POST
+  headers:
+    - key: x-api-key
+      value: <API Key>
+      description: "Added as a part of security scheme: apikey"
+    - key: X-Correlation-Id
+      value: aula-123
+      disabled: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+    - key: Accept
+      value: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "url": "http://127.0.0.1:4000/hook",
+        "events": [
+          "nfse.issued",
+          "nfse.error",
+          "nfse.cancelled",
+          "nfse.documents_ready"
+        ],
+        "secret": "segredo-de-estudo"
+      }
+response:
+  statusCode: 201
+  statusText: Created
+  headers:
+    - key: X-Correlation-Id
+      value: string
+      disabled: false
+      description: Correlation ID recebido ou gerado pela bancada.
+    - key: X-Ambiente
+      value: string
+      disabled: false
+      description: Sempre `estudo`.
+    - key: X-Aviso
+      value: string
+      disabled: false
+      description: Sempre `sem-valor-fiscal`.
+    - key: Content-Type
+      value: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "active": false,
+        "createdAt": "1953-07-03T01:25:01.233Z",
+        "events": [
+          "nfse.cancelled",
+          "nfse.error"
+        ],
+        "hasSecret": false,
+        "id": "wh_",
+        "projectId": "prj_",
+        "secret": "string",
+        "url": "http://qL.dtctXqL-OA4ywFXMWaGoHil8QM+68CUE"
+      }
+order: 1000

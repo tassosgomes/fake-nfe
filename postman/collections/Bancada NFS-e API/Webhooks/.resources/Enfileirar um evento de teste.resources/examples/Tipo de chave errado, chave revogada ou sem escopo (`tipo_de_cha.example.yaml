@@ -1,0 +1,48 @@
+$kind: http-example
+name: Tipo de chave errado, chave revogada ou sem escopo (`tipo_de_chave`, `chave_revogada`, `escopo`).
+request:
+  url: "{{baseUrl}}/webhooks/endpoints/:id/test"
+  method: POST
+  headers:
+    - key: x-api-key
+      value: <API Key>
+      description: "Added as a part of security scheme: apikey"
+    - key: X-Correlation-Id
+      value: aula-123
+      disabled: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+    - key: Accept
+      value: application/problem+json
+  pathVariables:
+    - key: id
+      value: wh_
+      disabled: false
+      description: (Required) Identificador do endpoint (`wh_…`).
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 403
+  statusText: Forbidden
+  headers:
+    - key: X-Correlation-Id
+      value: string
+      disabled: false
+      description: Correlation ID recebido ou gerado pela bancada.
+    - key: Content-Type
+      value: application/problem+json
+  body:
+    type: json
+    content: |-
+      {
+        "type": "urn:bancada-nfse:problema:tipo_de_chave",
+        "title": "Acesso negado",
+        "status": 403,
+        "detail": "Esta rota aceita token de organização (prefixo ntaas_org_).",
+        "instance": "/api/v1/org/projects",
+        "code": "tipo_de_chave",
+        "campo": null,
+        "correlationId": "aula-123",
+        "aviso": "Ambiente de estudo. Nenhum documento foi transmitido à SEFAZ ou a uma prefeitura. Sem valor fiscal."
+      }
+order: 3000

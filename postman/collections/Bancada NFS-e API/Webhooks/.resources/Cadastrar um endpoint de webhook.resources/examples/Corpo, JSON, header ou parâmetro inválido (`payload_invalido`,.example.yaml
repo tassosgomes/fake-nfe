@@ -1,0 +1,53 @@
+$kind: http-example
+name: Corpo, JSON, header ou parâmetro inválido (`payload_invalido`, `json_invalido`, `simulacao_invalida`, `idempotency_invalida`…).
+request:
+  url: "{{baseUrl}}/webhooks/endpoints"
+  method: POST
+  headers:
+    - key: x-api-key
+      value: <API Key>
+      description: "Added as a part of security scheme: apikey"
+    - key: X-Correlation-Id
+      value: aula-123
+      disabled: false
+      description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+    - key: Accept
+      value: application/problem+json
+  body:
+    type: json
+    content: |-
+      {
+        "url": "http://127.0.0.1:4000/hook",
+        "events": [
+          "nfse.issued",
+          "nfse.error",
+          "nfse.cancelled",
+          "nfse.documents_ready"
+        ],
+        "secret": "segredo-de-estudo"
+      }
+response:
+  statusCode: 400
+  statusText: Bad Request
+  headers:
+    - key: X-Correlation-Id
+      value: string
+      disabled: false
+      description: Correlation ID recebido ou gerado pela bancada.
+    - key: Content-Type
+      value: application/problem+json
+  body:
+    type: json
+    content: |-
+      {
+        "type": "urn:bancada-nfse:problema:payload_invalido",
+        "title": "Requisição inválida",
+        "status": 400,
+        "detail": "Informe CNPJ, CPF ou NIF do tomador",
+        "instance": "/api/v1/emitir",
+        "code": "payload_invalido",
+        "campo": "tomador.cnpj",
+        "correlationId": "aula-123",
+        "aviso": "Ambiente de estudo. Nenhum documento foi transmitido à SEFAZ ou a uma prefeitura. Sem valor fiscal."
+      }
+order: 2000

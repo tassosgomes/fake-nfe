@@ -1,0 +1,31 @@
+$kind: http-request
+description: |
+  `http://localhost` e `http://127.0.0.1` são aceitos de propósito, para o estudo rodar na mesma máquina.
+  O segredo é devolvido só nesta resposta.
+url: "{{baseUrl}}/webhooks/endpoints"
+method: POST
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "url": "http://127.0.0.1:4000/hook",
+      "events": [
+        "nfse.issued",
+        "nfse.error",
+        "nfse.cancelled",
+        "nfse.documents_ready"
+      ],
+      "secret": "segredo-de-estudo"
+    }
+settings: {}
+examples: ./.resources/Cadastrar um endpoint de webhook.resources/examples
+order: 2000

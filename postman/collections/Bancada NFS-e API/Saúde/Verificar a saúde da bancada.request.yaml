@@ -1,0 +1,14 @@
+$kind: http-request
+description: Responde `200` quando o banco de estudo responde. Não pede chave e não conta no rate limit.
+url: "{{baseUrl}}/health"
+method: GET
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Accept
+    value: application/json
+settings: {}
+examples: ./.resources/Verificar a saúde da bancada.resources/examples
+order: 1000

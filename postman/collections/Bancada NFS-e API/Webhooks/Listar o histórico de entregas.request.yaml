@@ -1,0 +1,19 @@
+$kind: http-request
+description: Inclui entregas pendentes, bem-sucedidas e falhas, da mais recente para a mais antiga.
+url: "{{baseUrl}}/webhooks/deliveries?limit=50"
+method: GET
+headers:
+  - key: X-Correlation-Id
+    value: aula-123
+    disabled: false
+    description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
+  - key: Accept
+    value: application/json
+queryParams:
+  - key: limit
+    value: "50"
+    disabled: false
+    description: Quantidade máxima de entregas.
+settings: {}
+examples: ./.resources/Listar o histórico de entregas.resources/examples
+order: 6000
