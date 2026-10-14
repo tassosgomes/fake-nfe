@@ -7,6 +7,7 @@ Registros reproduzíveis da POC descrita no pacote de planejamento `postman-ee/d
 | [`POC-002-baseline.md`](POC-002-baseline.md) | POC-002 / POC-004 — baseline e versão do CLI | concluída |
 | [`FNFE-001-inventory.md`](FNFE-001-inventory.md) | FNFE-001 — inventário de endpoints e testes | concluída |
 | [`FNFE-002-contract.md`](FNFE-002-contract.md) | FNFE-002 — contrato OpenAPI e dry-run do `init` | concluída (aderência por execução na FNFE-004) |
+| [`FNFE-003-native-git.md`](FNFE-003-native-git.md) | FNFE-003 — bootstrap Native Git e primeiro push | concluída |
 
 ## Regras
 
