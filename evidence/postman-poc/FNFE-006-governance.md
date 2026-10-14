@@ -111,5 +111,5 @@ Toda saída indica arquivo, linha, caminho JSON, severidade e mensagem.
 - [x] Regras do plano implementadas com a severidade pedida (unicidade de `operationId` via passo de sintaxe).
 - [x] Mensagem identifica arquivo, regra e severidade.
 - [x] Falha reproduzida localmente (remoção de `operationId`) e contrato corrigido passando.
-- [ ] Resultado local e CI equivalentes — FNFE-007.
-- [ ] Evidência de PR quebrada e PR corrigida — FNFE-007.
+- [x] Resultado local e CI equivalentes (ver `FNFE-007-ci.md`).
+- [x] PR quebrada e PR corrigida: PR #3 (ver `FNFE-007-ci.md`).
