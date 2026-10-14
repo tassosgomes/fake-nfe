@@ -1,4 +1,9 @@
 cloudResources:
+  collections:
+    ../postman/collections/Bancada NFS-e API: 45689996-5d56aebf-7b85-49c0-8170-b0b4c727ed59
+    ../postman/collections/Bancada NFS-e Fluxos: 45689996-32e26c59-3ab0-489e-9b72-5adbd4044a3f
+  environments:
+    ../postman/environments/Local.environment.yaml: 45689996-17acefd3-e385-4aba-98d6-894d0d665c25
   globals:
     ../postman/globals/workspace.globals.yaml: 576dff76-f446-44a5-8e31-739c63d7c91b
   specs:
