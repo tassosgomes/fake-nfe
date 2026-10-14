@@ -1,0 +1,5 @@
+localResources:
+  specs:
+    - ../contracts/openapi.yaml
+workspace:
+  id: ce18cf47-6909-4378-865c-85321cd3050d
