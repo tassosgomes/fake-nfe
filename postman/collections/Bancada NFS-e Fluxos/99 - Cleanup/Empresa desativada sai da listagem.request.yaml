@@ -1,0 +1,13 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/org/projects'
+order: 2000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "ListaEmpresas"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('empresa temporária não aparece entre as ativas', () => pm.expect(pm.response.json().data.map(p => p.id)).to.not.include(pm.collectionVariables.get('tempProjectId')));

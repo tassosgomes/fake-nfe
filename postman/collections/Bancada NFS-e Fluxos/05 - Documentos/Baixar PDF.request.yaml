@@ -1,0 +1,18 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/invoices/{{invoiceId}}/pdf'
+order: 2000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('PDF não vazio', () => {
+      pm.expect(pm.response.headers.get('Content-Type')).to.eql('application/pdf');
+      pm.expect(pm.response.headers.get('Content-Disposition')).to.include('inline');
+      pm.expect(pm.response.responseSize).to.be.above(1000);
+      pm.expect(pm.response.text().startsWith('%PDF')).to.be.true;
+    });

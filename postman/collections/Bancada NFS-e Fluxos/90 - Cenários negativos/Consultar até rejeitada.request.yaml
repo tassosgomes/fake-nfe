@@ -1,0 +1,30 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/invoices/{{rejectedInvoiceId}}/status'
+order: 14000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "Nota"}');
+    // Espera curta entre consultas; o varredor da fila roda a cada 400 ms.
+    if (Number(pm.variables.get('pollCount') || 0) > 0) setTimeout(() => {}, 500);
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    const body = pm.response.json();
+    const tries = Number(pm.variables.get('pollCount') || 0);
+    if (['queued', 'processing', 'cancel_queued'].includes(body.status) && tries < 30) {
+      pm.variables.set('pollCount', String(tries + 1));
+      pm.execution.setNextRequest(pm.info.requestName);
+      return;
+    }
+    pm.variables.set('pollCount', '0');
+    pm.test('nota chega a error dentro do prazo', () => pm.expect(body.status).to.eql('error'));
+
+    pm.test('rejeição municipal vira E001 sem número', () => {
+      pm.expect(body.errorCode).to.eql('E001');
+      pm.expect(body.errorMessage).to.be.a('string').and.not.empty;
+      pm.expect(body.numeroNfse).to.be.null;
+      pm.expect(body.documentsCached).to.be.false;
+    });

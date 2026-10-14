@@ -1,0 +1,22 @@
+$kind: http-request
+method: PATCH
+url: '{{baseUrl}}/org/projects/{{tempProjectId}}'
+order: 4000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "fiscal-{{runId}}@filial.test"
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "EmpresaAtualizada"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('e-mail atualizado', () => pm.expect(pm.response.json().project.email).to.eql(`fiscal-${pm.collectionVariables.get('runId')}@filial.test`));

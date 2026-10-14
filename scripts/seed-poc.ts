@@ -31,7 +31,7 @@ function variable(key: string, value: string, secret = false) {
   return { key, value, type: secret ? "secret" : "default", enabled: true };
 }
 
-const baseUrl = process.env.SEED_BASE_URL ?? "http://localhost:3000";
+const baseUrl = process.env.SEED_BASE_URL ?? "http://localhost:3000/api/v1";
 const output = path.resolve(process.env.SEED_OUTPUT ?? path.join("data", "poc.postman_environment.json"));
 const stamp = `${Date.now().toString(36)}${randomBytes(2).toString("hex")}`;
 

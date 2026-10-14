@@ -1,0 +1,17 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/webhooks/endpoints'
+order: 2000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "ListaWebhooks"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('endpoint listado sem o segredo', () => {
+      const found = pm.response.json().data.find(w => w.id === pm.collectionVariables.get('webhookId'));
+      pm.expect(found).to.exist;
+      pm.expect(found).to.not.have.property('secret');
+    });

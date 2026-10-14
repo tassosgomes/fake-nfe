@@ -1,0 +1,32 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/webhooks/endpoints'
+order: 1000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "url": "http://127.0.0.1:9/poc-{{runId}}",
+      "events": [
+        "nfse.issued",
+        "nfse.cancelled"
+      ],
+      "secret": "segredo-poc-{{runId}}"
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 201, "schema": "WebhookEndpointCriado"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    const body = pm.response.json();
+    pm.collectionVariables.set('webhookId', body.id);
+    pm.test('segredo aparece só na criação', () => {
+      pm.expect(body.secret).to.eql(`segredo-poc-${pm.collectionVariables.get('runId')}`);
+      pm.expect(body.hasSecret).to.be.true;
+    });

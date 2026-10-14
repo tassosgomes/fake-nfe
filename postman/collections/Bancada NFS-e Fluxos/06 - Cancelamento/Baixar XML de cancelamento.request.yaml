@@ -1,0 +1,16 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/invoices/{{invoiceId}}/xml?type=cancel'
+order: 3000
+queryParams:
+- key: type
+  value: cancel
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('XML de cancelamento', () => pm.expect(pm.response.text()).to.include('<NfseEstudo'));

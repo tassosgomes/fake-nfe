@@ -1,0 +1,30 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/org/projects/{{tempProjectId}}/api-keys'
+order: 1000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "poc-{{runId}}",
+      "rateLimitPerMinute": 30
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 201, "schema": "ChaveCriada"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    const body = pm.response.json();
+    pm.collectionVariables.set('tempKeyId', body.id);
+    pm.variables.set('tempKey', body.key);
+    pm.test('chave de projeto completa aparece só na criação', () => {
+      pm.expect(body.key).to.match(/^ntaas_(?!org_)/);
+      pm.expect(body.key.startsWith(body.keyPrefix)).to.be.true;
+      pm.expect(body.scopes).to.have.members(['emit', 'cancel', 'query', 'webhooks']);
+    });

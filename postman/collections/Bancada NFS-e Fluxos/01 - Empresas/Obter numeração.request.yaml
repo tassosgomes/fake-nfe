@@ -1,0 +1,13 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/org/projects/{{tempProjectId}}/numeracao'
+order: 5000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "Numeracao"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('empresa nova começa do zero', () => pm.expect(pm.response.json().nfse.ultimoNumero).to.eql(0));

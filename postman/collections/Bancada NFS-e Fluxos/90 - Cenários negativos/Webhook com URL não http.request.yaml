@@ -1,0 +1,21 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/webhooks/endpoints'
+order: 16000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "url": "ftp://127.0.0.1/hook",
+      "events": [
+        "nfse.issued"
+      ]
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 400, "code": "url_invalida", "campo": "url"}');

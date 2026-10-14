@@ -1,0 +1,13 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/org/projects/{{tempProjectId}}'
+order: 3000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "Empresa"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('mesma empresa', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('tempProjectId')));

@@ -1,0 +1,21 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/webhooks/deliveries?limit=100'
+order: 4000
+queryParams:
+- key: limit
+  value: '100'
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "ListaEntregasWebhook"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('entrega de teste no histórico', () => {
+      const found = pm.response.json().data.find(d => d.id === pm.collectionVariables.get('deliveryId'));
+      pm.expect(found).to.exist;
+      pm.expect(found.event).to.eql('nfse.issued');
+      pm.expect(found.endpointId).to.eql(pm.collectionVariables.get('webhookId'));
+    });

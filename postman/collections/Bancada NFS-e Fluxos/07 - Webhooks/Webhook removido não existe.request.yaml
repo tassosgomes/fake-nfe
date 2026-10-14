@@ -1,0 +1,9 @@
+$kind: http-request
+method: DELETE
+url: '{{baseUrl}}/webhooks/endpoints/{{webhookId}}'
+order: 7000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 404, "code": "nao_encontrado"}');

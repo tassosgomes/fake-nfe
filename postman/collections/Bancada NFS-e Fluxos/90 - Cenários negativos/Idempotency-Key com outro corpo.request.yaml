@@ -1,0 +1,38 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/emitir'
+order: 10000
+headers:
+- key: Content-Type
+  value: application/json
+- key: Idempotency-Key
+  value: poc-{{runId}}-emissao
+body:
+  type: json
+  content: |-
+    {
+      "tomador": {
+        "nome": "Cliente Exemplo LTDA",
+        "cnpj": "19131243000197",
+        "email": "financeiro@cliente.test"
+      },
+      "servico": {
+        "descricao": "Aula de integração fiscal",
+        "codigo": "010700"
+      },
+      "valores": {
+        "total": 1500,
+        "aliquotaIss": 2
+      },
+      "competencia": "2026-03",
+      "referencia": "POC-{{runId}}-outro-corpo",
+      "simulacao": {
+        "resultado": "sucesso",
+        "atrasoMs": 0
+      }
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 409, "code": "idempotency_conflito"}');

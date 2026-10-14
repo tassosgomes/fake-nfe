@@ -1,0 +1,22 @@
+$kind: http-request
+method: PATCH
+url: '{{baseUrl}}/org/projects/{{tempProjectId}}/numeracao'
+order: 6000
+headers:
+- key: Content-Type
+  value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "ultimoNumeroNfse": 100
+    }
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "Numeracao"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.test('próximo número é 101', () => pm.expect(pm.response.json().nfse.proximoNumero).to.eql(101));

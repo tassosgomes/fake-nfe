@@ -1,0 +1,75 @@
+$kind: collection
+name: Bancada NFS-e Fluxos
+description: |-
+  Fluxos de negócio da Bancada NFS-e, com assertions derivadas do contrato `contracts/openapi.yaml`.
+
+  Rode com `npm run postman:e2e`, que cria uma organização descartável (`npm run seed:poc`) e injeta os schemas do contrato em `contractSchemas`. Rodando de outro jeito, a validação de schema é pulada.
+
+  Variáveis do environment: `baseUrl`, `apiKey` (chave de projeto), `orgToken` (token de organização) e `projectId`.
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: '{{apiKey}}'
+    in: header
+scripts:
+- type: http:beforeRequest
+  language: text/javascript
+  code: |-
+    // Correlation ID previsível por requisição; um header explícito no request vence.
+    let runId = pm.collectionVariables.get('runId');
+    if (!runId) {
+      runId = Date.now().toString(36);
+      pm.collectionVariables.set('runId', runId);
+    }
+    const seq = Number(pm.collectionVariables.get('seq') || 0) + 1;
+    pm.collectionVariables.set('seq', String(seq));
+    if (!pm.request.headers.has('X-Correlation-Id')) {
+      pm.request.headers.upsert({ key: 'X-Correlation-Id', value: `poc-${runId}-${seq}` });
+    }
+    pm.variables.set('sentCorrelationId', pm.request.headers.get('X-Correlation-Id'));
+    pm.variables.set('expect', '{}');
+- type: http:afterResponse
+  language: text/javascript
+  code: |-
+    // Garantias comuns a toda resposta. Cada request declara o esperado em `expect`.
+    const exp = JSON.parse(pm.variables.get('expect') || '{}');
+    const sent = pm.variables.get('sentCorrelationId') || '';
+    const got = pm.response.headers.get('X-Correlation-Id');
+
+    if (exp.status) {
+      pm.test(`status ${exp.status}`, () => pm.response.to.have.status(exp.status));
+    }
+    pm.test('X-Ambiente: estudo', () => pm.expect(pm.response.headers.get('X-Ambiente')).to.eql('estudo'));
+    pm.test('X-Correlation-Id ecoado ou gerado', () => {
+      if (/^[A-Za-z0-9._:-]{1,128}$/.test(sent)) pm.expect(got).to.eql(sent);
+      else pm.expect(got).to.match(/^[0-9a-f-]{36}$/);
+    });
+    pm.test('tempo de resposta indicativo < 3000 ms', () => pm.expect(pm.response.responseTime).to.be.below(3000));
+
+    if (pm.response.code >= 400) {
+      pm.test('erro em application/problem+json', () => {
+        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');
+        const body = pm.response.json();
+        pm.expect(body.status).to.eql(pm.response.code);
+        pm.expect(body.type).to.eql(`urn:bancada-nfse:problema:${body.code}`);
+        pm.expect(body.instance).to.match(/^\/api\/v1\//);
+        pm.expect(body.correlationId).to.eql(got);
+        pm.expect(body.title).to.be.a('string').and.not.empty;
+        pm.expect(body.detail).to.be.a('string').and.not.empty;
+      });
+      if (exp.code) pm.test(`code ${exp.code}`, () => pm.expect(pm.response.json().code).to.eql(exp.code));
+      if (exp.campo) pm.test(`campo ${exp.campo}`, () => pm.expect(pm.response.json().campo).to.eql(exp.campo));
+    }
+
+    if (exp.schema) {
+      const raw = pm.variables.get('contractSchemas');
+      if (!raw) {
+        pm.test.skip(`corpo segue ${exp.schema} (rode com npm run postman:e2e para carregar o contrato)`, () => {});
+      } else {
+        const schemas = JSON.parse(raw);
+        pm.test(`corpo segue o schema ${exp.schema} do contrato`, () => {
+          pm.response.to.have.jsonSchema({ components: { schemas }, $ref: `#/components/schemas/${exp.schema}` });
+        });
+      }
+    }

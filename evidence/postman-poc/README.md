@@ -8,6 +8,7 @@ Registros reproduzíveis da POC descrita no pacote de planejamento `postman-ee/d
 | [`FNFE-001-inventory.md`](FNFE-001-inventory.md) | FNFE-001 — inventário de endpoints e testes | concluída |
 | [`FNFE-002-contract.md`](FNFE-002-contract.md) | FNFE-002 — contrato OpenAPI e dry-run do `init` | concluída (aderência por execução na FNFE-004) |
 | [`FNFE-003-native-git.md`](FNFE-003-native-git.md) | FNFE-003 — bootstrap Native Git e primeiro push | concluída |
+| [`FNFE-004-005-collections.md`](FNFE-004-005-collections.md) | FNFE-004 / FNFE-005 — Collections e E2E (10 execuções) | concluída |
 
 ## Regras
 
@@ -20,8 +21,8 @@ Registros reproduzíveis da POC descrita no pacote de planejamento `postman-ee/d
 
 - [x] `.gitignore` cobre `data/`, `*.sqlite*` e `.next`.
 - [x] Nenhum segredo no repositório na data do baseline.
-- [ ] Environment Postman versionado só com `baseUrl` e variáveis sem valor.
-- [ ] `apiKey` e `orgToken` só em vault local ou GitHub Secrets.
+- [x] Environment Postman versionado só com `baseUrl` e variáveis sem valor.
+- [x] `apiKey` e `orgToken` só em arquivo local ignorado (`data/`); no CI, gerados pelo seed a cada execução.
 - [ ] Secret Scanner do Postman habilitado no workspace (depende do tenant).
 - [ ] Inventário do que vai para a cloud do Postman: contrato, Collection, resultados de lint e de run. Nenhum payload real.
 

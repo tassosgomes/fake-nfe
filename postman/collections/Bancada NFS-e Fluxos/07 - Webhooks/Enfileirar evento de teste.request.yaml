@@ -1,0 +1,13 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/webhooks/endpoints/{{webhookId}}/test'
+order: 3000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 202, "schema": "EntregaTesteEnfileirada"}');
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    pm.collectionVariables.set('deliveryId', pm.response.json().deliveryId);

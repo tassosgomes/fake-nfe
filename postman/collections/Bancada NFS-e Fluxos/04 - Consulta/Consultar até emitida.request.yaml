@@ -1,0 +1,32 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/invoices/{{invoiceId}}/status'
+order: 1000
+scripts:
+- type: beforeRequest
+  language: text/javascript
+  code: |-
+    pm.variables.set('expect', '{"status": 200, "schema": "Nota"}');
+    // Espera curta entre consultas; o varredor da fila roda a cada 400 ms.
+    if (Number(pm.variables.get('pollCount') || 0) > 0) setTimeout(() => {}, 500);
+- type: afterResponse
+  language: text/javascript
+  code: |-
+    const body = pm.response.json();
+    const tries = Number(pm.variables.get('pollCount') || 0);
+    if (['queued', 'processing', 'cancel_queued'].includes(body.status) && tries < 30) {
+      pm.variables.set('pollCount', String(tries + 1));
+      pm.execution.setNextRequest(pm.info.requestName);
+      return;
+    }
+    pm.variables.set('pollCount', '0');
+    pm.test('nota chega a issued dentro do prazo', () => pm.expect(body.status).to.eql('issued'));
+
+    pm.test('nota emitida tem número, chave de estudo e documentos', () => {
+      pm.expect(body.numeroNfse).to.match(/^\d{6}$/);
+      pm.expect(body.chNFSe).to.match(/^ESTUDO-/);
+      pm.expect(body.documentsCached).to.be.true;
+      pm.expect(body.pdfUrl).to.match(/\/pdf$/);
+      pm.expect(body.errorCode).to.be.null;
+    });
+    pm.collectionVariables.set('numeroNfse', body.numeroNfse);

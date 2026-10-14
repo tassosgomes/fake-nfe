@@ -7,7 +7,8 @@
     "start": "next start",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "seed:poc": "tsx scripts/seed-poc.ts"
+    "seed:poc": "tsx scripts/seed-poc.ts",
+    "postman:e2e": "bash scripts/postman-e2e.sh"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

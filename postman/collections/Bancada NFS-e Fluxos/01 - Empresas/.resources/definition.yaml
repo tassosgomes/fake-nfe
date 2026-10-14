@@ -1,0 +1,9 @@
+$kind: collection
+description: Cadastro e manutenção de uma empresa temporária, desativada no cleanup.
+order: 2000
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: '{{orgToken}}'
+    in: header

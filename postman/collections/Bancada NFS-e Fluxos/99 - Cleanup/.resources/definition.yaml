@@ -1,0 +1,9 @@
+$kind: collection
+description: Desativa o que o fluxo criou e confere a cota consumida.
+order: 10000
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: '{{orgToken}}'
+    in: header
