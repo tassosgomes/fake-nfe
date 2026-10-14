@@ -78,7 +78,7 @@ paths:
     post:
       operationId: emitirNfse
       tags: [Notas]
-      summary: Emitir uma NFS-e de estudo
+      summary: Emitir uma NFS-e de estudo (fila simulada)
       security:
         - chaveProjeto: []
       description: |
