@@ -30,7 +30,30 @@ Um job, só no repositório de origem, um por vez (`concurrency` sem cancelament
 
 O contrato de origem não é alterado: o push só lê `contracts/openapi.yaml`.
 
-Validação: `actionlint` sem avisos. A primeira execução real acontece no merge do PR #2.
+Validação: `actionlint` sem avisos.
+
+### Primeira publicação — merge do PR #2
+
+- Merge: `79fc03d` em 2026-10-14, merge commit.
+- Run: [38651747697](https://github.com/tassosgomes/fake-nfe/actions/runs/38651747697) — **sucesso em todos os passos**, 1 min 49 s.
+
+| Passo | Resultado |
+| --- | --- |
+| Login | ok (`POSTMAN_API_KEY` mascarada; nenhum `PMAK-` no log) |
+| Sintaxe e governança com `--report-events` | `No issues found.` nos dois; o reporting não deixa mensagem no log |
+| `npm test`, build, bancada no runner | ok |
+| Collection de fluxos com `--report-events` | 52 requests, 308 assertions, 0 falhas; `Uploaded successfully! View on Postman: …/workspace/<WORKSPACE_ID>/run/<RUN_ID>` |
+| `workspace diff` | 2 Collections a atualizar, 0 a apagar |
+| `workspace push --yes` | 5 entidades atualizadas (2 Collections, 1 environment, 1 spec, globals), 0 criadas, 0 apagadas; 1 link spec→Collection atualizado |
+| Versionar IDs do manifest | `Manifest sem IDs novos.` — nenhum commit de volta em `main` |
+| Contrato de origem | não alterado (push só lê `contracts/openapi.yaml`) |
+
+#### Achados da publicação
+
+1. **Exemplos recriados quando o nome muda.** O diff mostrou 172 exemplos "removidos" e 172 "adicionados" na Collection de referência: são os mesmos, mas o `spec sync` passou a nomeá-los pela descrição completa (`Bancada disponível.`) em vez do nome derivado do arquivo (`Bancada disponível-`). No push, os exemplos ganham IDs novos; comentários ou links feitos neles na cloud se perderiam.
+2. **Diff com ruído em `auth`.** A Collection de fluxos aparece como `modified` na raiz e nas pastas e requests que definem `auth` (01, 02, 99 e os dois `noauth`), sem mudança local desde o push anterior. O push regrava essas partes sem perda.
+3. **`workspace diff` e `push` sempre sugerem `force-sync`** (que apaga o que não existe localmente). O workflow usa a estratégia padrão.
+4. **O run reportado fica no workspace** e pode conter os headers da requisição. As chaves são de um banco descartável no runner, mas convém conferir na interface o que o run mostra e se o Secret Scanner reage (FNFE-008).
 
 ## Execuções no PR #2
 
@@ -80,4 +103,4 @@ FNFE-007:
 - [x] PR inválida é bloqueada.
 - [x] PR válida passa.
 - [x] Segredo não aparece nos logs.
-- [ ] Merge publica sem modificar o contrato de origem — workflow criado; validar na primeira execução após o merge do PR #2.
+- [x] Merge publica sem modificar o contrato de origem (run 38651747697).
