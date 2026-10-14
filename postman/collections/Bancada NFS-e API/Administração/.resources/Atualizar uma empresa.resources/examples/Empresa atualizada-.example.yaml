@@ -46,21 +46,21 @@ response:
     type: json
     content: |-
       {
-        "updated": false,
+        "updated": true,
         "id": "prj_",
         "project": {
           "id": "prj_",
           "name": "string",
-          "cnpj": "04108340468358",
+          "cnpj": "87792633025727",
           "razaoSocial": "string",
           "serieNfse": "string",
-          "ultimoNumeroNfse": 6417,
-          "proximoNumeroNfse": 5092,
-          "active": false,
-          "hasCertificate": true,
+          "ultimoNumeroNfse": 3168,
+          "proximoNumeroNfse": 3701,
+          "active": true,
+          "hasCertificate": false,
           "hasLogo": false,
-          "createdAt": "1967-07-19T16:46:45.730Z",
-          "updatedAt": "1960-12-30T05:33:16.802Z",
+          "createdAt": "1975-06-23T10:08:10.803Z",
+          "updatedAt": "1974-06-12T23:38:05.945Z",
           "inscricaoMunicipal": "string",
           "inscricaoEstadual": "string",
           "regimeTributario": "string",
@@ -79,9 +79,9 @@ response:
             "pais": "st"
           },
           "codigoTributacao": "string",
-          "tributacaoIss": 1099,
-          "aliquotaSimples": 4330.584409181029,
-          "regimeIss": 7663,
+          "tributacaoIss": 4110,
+          "aliquotaSimples": 3960.1589553058147,
+          "regimeIss": 7563,
           "codigoServicoSp": "string",
           "cnae": "string",
           "basicAuthUsuario": "string",
@@ -91,11 +91,11 @@ response:
           "defaultClassificacao": "string",
           "defaultIndicador": "string",
           "cstPisCofins": "string",
-          "aliquotaPis": 5773.262872826308,
-          "aliquotaCofins": 4227.2769613191485,
+          "aliquotaPis": 5304.726513568312,
+          "aliquotaCofins": 9117.878745310009,
           "certFileName": "string",
-          "certUploadedAt": "1994-07-04T09:27:07.364Z",
-          "hasApiKey": true
+          "certUploadedAt": "1988-01-18T14:51:29.970Z",
+          "hasApiKey": false
         }
       }
 order: 1000

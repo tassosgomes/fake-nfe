@@ -49,15 +49,15 @@ response:
     content: |-
       {
         "active": false,
-        "createdAt": "1953-07-03T01:25:01.233Z",
+        "createdAt": "2014-09-18T07:56:01.202Z",
         "events": [
-          "nfse.cancelled",
-          "nfse.error"
+          "nfse.issued",
+          "nfse.documents_ready"
         ],
         "hasSecret": false,
         "id": "wh_",
         "projectId": "prj_",
         "secret": "string",
-        "url": "http://qL.dtctXqL-OA4ywFXMWaGoHil8QM+68CUE"
+        "url": "https://uLbvfgmFMnwRClSRgGpx.qtijNr0WvYUAwMZPoS4O-YcZ75eF7iEMOhG8z.TqvcMOEMtkubancQSShLxrnt"
       }
 order: 1000

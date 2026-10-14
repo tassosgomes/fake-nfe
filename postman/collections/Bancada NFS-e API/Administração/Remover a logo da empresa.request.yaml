@@ -1,5 +1,5 @@
 $kind: http-request
-description: ""
+description: Remove a logo. O PDF de estudo volta a sair sem imagem.
 url: "{{baseUrl}}/org/projects/:id/logo"
 method: DELETE
 headers:

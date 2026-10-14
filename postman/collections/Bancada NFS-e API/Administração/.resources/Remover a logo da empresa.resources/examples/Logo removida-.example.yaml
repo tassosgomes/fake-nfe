@@ -43,6 +43,6 @@ response:
     type: json
     content: |-
       {
-        "ok": true
+        "ok": false
       }
 order: 1000

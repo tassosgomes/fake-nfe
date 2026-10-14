@@ -1,5 +1,5 @@
 $kind: http-request
-description: ""
+description: Lista os endpoints de webhook do projeto da chave, ativos e inativos. O segredo nunca volta.
 url: "{{baseUrl}}/webhooks/endpoints"
 method: GET
 headers:
@@ -9,6 +9,12 @@ headers:
     description: Identificador para rastrear a chamada. Fora do padrão, a bancada gera um UUID.
   - key: Accept
     value: application/json
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
 settings: {}
 examples: ./.resources/Listar endpoints de webhook do projeto.resources/examples
 order: 1000

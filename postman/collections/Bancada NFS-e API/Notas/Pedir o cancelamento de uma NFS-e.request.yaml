@@ -34,6 +34,12 @@ body:
         "atrasoMs": 0
       }
     }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
 settings: {}
 examples: ./.resources/Pedir o cancelamento de uma NFS-e.resources/examples
 order: 5000

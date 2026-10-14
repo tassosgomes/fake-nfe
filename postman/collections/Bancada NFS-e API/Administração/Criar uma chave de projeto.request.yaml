@@ -21,7 +21,7 @@ body:
   content: |-
     {
       "name": "integracao-erp",
-      "rateLimitPerMinute": 60
+      "rateLimitPerMinute": 120
     }
 auth:
   type: apikey

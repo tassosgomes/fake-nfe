@@ -52,8 +52,8 @@ response:
     content: |-
       {
         "fileName": "string",
-        "validado": true,
+        "validado": false,
         "aviso": "string",
-        "uploadedAt": "1994-07-08T20:30:15.499Z"
+        "uploadedAt": "2018-01-23T09:51:14.228Z"
       }
 order: 1000

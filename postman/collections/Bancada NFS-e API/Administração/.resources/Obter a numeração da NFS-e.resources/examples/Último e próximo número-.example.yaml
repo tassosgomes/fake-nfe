@@ -44,8 +44,8 @@ response:
     content: |-
       {
         "nfse": {
-          "ultimoNumero": 2530,
-          "proximoNumero": 8636,
+          "ultimoNumero": 9874,
+          "proximoNumero": 3775,
           "serie": "string"
         }
       }

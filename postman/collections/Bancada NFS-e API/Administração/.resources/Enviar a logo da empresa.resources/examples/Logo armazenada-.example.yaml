@@ -47,7 +47,7 @@ response:
     type: json
     content: |-
       {
-        "ok": true,
+        "ok": false,
         "aviso": "string"
       }
 order: 1000

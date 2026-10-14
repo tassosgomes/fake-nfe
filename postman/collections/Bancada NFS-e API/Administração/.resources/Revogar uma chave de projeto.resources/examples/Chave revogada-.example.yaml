@@ -47,7 +47,7 @@ response:
     type: json
     content: |-
       {
-        "revoked": true,
+        "revoked": false,
         "id": "key_"
       }
 order: 1000

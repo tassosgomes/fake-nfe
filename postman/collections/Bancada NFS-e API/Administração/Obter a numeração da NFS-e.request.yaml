@@ -1,5 +1,5 @@
 $kind: http-request
-description: ""
+description: Devolve o último número de NFS-e usado e o próximo, com a série da empresa.
 url: "{{baseUrl}}/org/projects/:id/numeracao"
 method: GET
 headers:

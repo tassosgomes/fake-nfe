@@ -23,7 +23,7 @@ request:
     content: |-
       {
         "name": "integracao-erp",
-        "rateLimitPerMinute": 60
+        "rateLimitPerMinute": 120
       }
 response:
   statusCode: 400

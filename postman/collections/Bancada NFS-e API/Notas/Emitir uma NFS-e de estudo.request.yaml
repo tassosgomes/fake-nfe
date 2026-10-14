@@ -50,6 +50,12 @@ body:
         "atrasoMs": 0
       }
     }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
 settings: {}
 examples: ./.resources/Emitir uma NFS-e de estudo.resources/examples
 order: 1000

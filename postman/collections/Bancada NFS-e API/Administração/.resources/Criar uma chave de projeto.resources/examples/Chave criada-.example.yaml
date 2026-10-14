@@ -23,7 +23,7 @@ request:
     content: |-
       {
         "name": "integracao-erp",
-        "rateLimitPerMinute": 60
+        "rateLimitPerMinute": 120
       }
 response:
   statusCode: 201
@@ -47,16 +47,16 @@ response:
     type: json
     content: |-
       {
-        "active": false,
-        "createdAt": "1972-12-15T01:10:32.845Z",
+        "active": true,
+        "createdAt": "2003-01-20T00:25:32.078Z",
         "id": "key_",
         "key": "string",
         "keyPrefix": "ntaas_c2e7",
-        "kind": "project",
-        "lastUsedAt": "1961-11-18T17:42:50.190Z",
+        "kind": "org",
+        "lastUsedAt": "1976-09-21T06:03:40.589Z",
         "name": "string",
         "projectId": "string",
-        "rateLimitPerMinute": 482,
+        "rateLimitPerMinute": 478,
         "scopes": [
           "string",
           "string"

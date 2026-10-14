@@ -41,17 +41,17 @@ response:
         "name": "string",
         "slug": "string",
         "planName": "string",
-        "creditsUsed": 3505,
-        "creditsLimit": 1341,
-        "projectLimit": 3654,
-        "latencyMinMs": 2414,
-        "latencyMaxMs": 1469,
-        "failureRate": 56,
+        "creditsUsed": 7348,
+        "creditsLimit": 3190,
+        "projectLimit": 3385,
+        "latencyMinMs": 5054,
+        "latencyMaxMs": 6233,
+        "failureRate": 32,
         "retries": [
-          9919,
-          4810
+          5601,
+          4543
         ],
         "storageBaseUrl": "string",
-        "storageStatus": "pending_verification"
+        "storageStatus": "verified"
       }
 order: 1000

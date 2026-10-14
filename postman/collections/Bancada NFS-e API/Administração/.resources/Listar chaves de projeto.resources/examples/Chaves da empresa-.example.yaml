@@ -54,25 +54,25 @@ response:
               "string",
               "string"
             ],
-            "rateLimitPerMinute": 150,
+            "rateLimitPerMinute": 56,
             "active": false,
-            "lastUsedAt": "1993-03-10T23:44:23.873Z",
-            "createdAt": "2012-01-11T01:29:46.012Z"
+            "lastUsedAt": "1997-01-02T22:09:41.901Z",
+            "createdAt": "1956-07-30T08:46:51.981Z"
           },
           {
             "id": "key_",
             "name": "string",
-            "kind": "org",
+            "kind": "project",
             "projectId": "string",
             "keyPrefix": "ntaas_c2e7",
             "scopes": [
               "string",
               "string"
             ],
-            "rateLimitPerMinute": 191,
-            "active": false,
-            "lastUsedAt": "2021-03-06T21:56:20.946Z",
-            "createdAt": "2014-08-30T13:16:52.953Z"
+            "rateLimitPerMinute": 271,
+            "active": true,
+            "lastUsedAt": "1982-04-16T22:29:58.089Z",
+            "createdAt": "2003-04-28T08:40:17.448Z"
           }
         ]
       }

@@ -60,11 +60,11 @@ response:
     type: json
     content: |-
       {
-        "queued": true,
+        "queued": false,
         "invoiceId": "inv_",
         "status": "string",
         "aviso": "string",
-        "cenario": "sucesso",
-        "atrasoMs": 1008
+        "cenario": "rejeicao",
+        "atrasoMs": 9018
       }
 order: 1000

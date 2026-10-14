@@ -18,7 +18,7 @@ request:
     content: |-
       {
         "storageBaseUrl": "https://arquivos.estudo.test",
-        "simularVerificacao": false
+        "simularVerificacao": true
       }
 response:
   statusCode: 500
@@ -36,7 +36,7 @@ response:
       {
         "type": "urn:bancada-nfse:problema:nao_encontrado",
         "title": "string",
-        "status": 508,
+        "status": 422,
         "detail": "string",
         "instance": "string",
         "code": "nao_encontrado",

@@ -1,6 +1,6 @@
 $kind: http-request
-description: ""
-url: "{{baseUrl}}/org/projects?active=false&page=1&limit=20"
+description: Lista as empresas da organização, paginadas. Sem `active`, só as ativas.
+url: "{{baseUrl}}/org/projects?active=true&page=1&limit=20"
 method: GET
 headers:
   - key: X-Correlation-Id
@@ -11,7 +11,7 @@ headers:
     value: application/json
 queryParams:
   - key: active
-    value: "false"
+    value: "true"
     disabled: false
     description: "`false` ou `all` incluem empresas desativadas. Sem o parâmetro, só as ativas."
   - key: page

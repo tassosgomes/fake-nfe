@@ -14,6 +14,12 @@ queryParams:
     value: "50"
     disabled: false
     description: Quantidade máxima de entregas.
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
 settings: {}
 examples: ./.resources/Listar o histórico de entregas.resources/examples
 order: 6000

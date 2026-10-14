@@ -1,5 +1,5 @@
 $kind: http-request
-description: ""
+description: Devolve todos os dados da empresa, inclusive certificado, logo e numeração. A senha do Basic Auth nunca volta.
 url: "{{baseUrl}}/org/projects/:id"
 method: GET
 headers:

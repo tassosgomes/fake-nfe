@@ -1,7 +1,7 @@
 $kind: http-example
 name: Tipo de chave errado, chave revogada ou sem escopo (`tipo_de_chave`, `chave_revogada`, `escopo`).
 request:
-  url: "{{baseUrl}}/org/projects?active=false&page=1&limit=20"
+  url: "{{baseUrl}}/org/projects?active=true&page=1&limit=20"
   method: GET
   headers:
     - key: x-api-key
@@ -14,7 +14,7 @@ request:
     - key: Accept
       value: application/problem+json
   queryParams:
-    active: "false"
+    active: "true"
     page: "1"
     limit: "20"
   body:

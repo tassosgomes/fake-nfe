@@ -1,5 +1,5 @@
 $kind: http-request
-description: ""
+description: Devolve o plano Estudo, a cota usada, os parâmetros da fila simulada e o domínio de arquivos.
 url: "{{baseUrl}}/org/settings"
 method: GET
 headers:

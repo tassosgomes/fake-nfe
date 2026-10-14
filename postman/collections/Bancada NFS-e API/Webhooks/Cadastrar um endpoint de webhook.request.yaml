@@ -26,6 +26,12 @@ body:
       ],
       "secret": "segredo-de-estudo"
     }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
 settings: {}
 examples: ./.resources/Cadastrar um endpoint de webhook.resources/examples
 order: 2000

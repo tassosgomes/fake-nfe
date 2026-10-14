@@ -1,7 +1,7 @@
 $kind: http-example
 name: Falha inesperada da bancada (`erro_interno`).
 request:
-  url: "{{baseUrl}}/org/projects?active=false&page=1&limit=20"
+  url: "{{baseUrl}}/org/projects?active=true&page=1&limit=20"
   method: GET
   headers:
     - key: x-api-key
@@ -14,7 +14,7 @@ request:
     - key: Accept
       value: application/problem+json
   queryParams:
-    active: "false"
+    active: "true"
     page: "1"
     limit: "20"
   body:
@@ -36,7 +36,7 @@ response:
       {
         "type": "urn:bancada-nfse:problema:nao_encontrado",
         "title": "string",
-        "status": 508,
+        "status": 422,
         "detail": "string",
         "instance": "string",
         "code": "nao_encontrado",

@@ -1,5 +1,5 @@
 $kind: http-request
-description: ""
+description: Remove o endpoint. Entregas já registradas continuam no histórico.
 url: "{{baseUrl}}/webhooks/endpoints/:id"
 method: DELETE
 headers:
@@ -14,6 +14,12 @@ pathVariables:
     value: wh_
     disabled: false
     description: (Required) Identificador do endpoint (`wh_…`).
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
 settings: {}
 examples: ./.resources/Remover um endpoint de webhook.resources/examples
 order: 4000

@@ -18,7 +18,7 @@ request:
     content: |-
       {
         "storageBaseUrl": "https://arquivos.estudo.test",
-        "simularVerificacao": false
+        "simularVerificacao": true
       }
 response:
   statusCode: 401

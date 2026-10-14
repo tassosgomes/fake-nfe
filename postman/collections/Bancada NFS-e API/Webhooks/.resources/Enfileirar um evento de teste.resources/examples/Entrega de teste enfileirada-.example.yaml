@@ -43,7 +43,7 @@ response:
     type: json
     content: |-
       {
-        "queued": true,
+        "queued": false,
         "deliveryId": "del_"
       }
 order: 1000

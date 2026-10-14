@@ -18,7 +18,7 @@ request:
     content: |-
       {
         "storageBaseUrl": "https://arquivos.estudo.test",
-        "simularVerificacao": false
+        "simularVerificacao": true
       }
 response:
   statusCode: 200
@@ -43,7 +43,7 @@ response:
     content: |-
       {
         "storageBaseUrl": "string",
-        "status": "verified",
+        "status": "pending_verification",
         "message": "string"
       }
 order: 1000

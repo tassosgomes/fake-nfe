@@ -1,7 +1,7 @@
 $kind: http-example
 name: Página de empresas.
 request:
-  url: "{{baseUrl}}/org/projects?active=false&page=1&limit=20"
+  url: "{{baseUrl}}/org/projects?active=true&page=1&limit=20"
   method: GET
   headers:
     - key: x-api-key
@@ -14,7 +14,7 @@ request:
     - key: Accept
       value: application/json
   queryParams:
-    active: "false"
+    active: "true"
     page: "1"
     limit: "20"
   body:
@@ -46,30 +46,30 @@ response:
           {
             "id": "prj_",
             "name": "string",
-            "cnpj": "83592296476287",
+            "cnpj": "30807027605285",
             "codigoMunicipio": "string",
-            "active": false,
-            "hasCertificate": true,
+            "active": true,
+            "hasCertificate": false,
             "hasApiKey": true,
-            "proximoNumeroNfse": 7776,
-            "createdAt": "2008-11-25T00:44:00.030Z"
+            "proximoNumeroNfse": 4473,
+            "createdAt": "1987-06-26T22:45:15.330Z"
           },
           {
             "id": "prj_",
             "name": "string",
-            "cnpj": "38857826358566",
+            "cnpj": "90036985889646",
             "codigoMunicipio": "string",
-            "active": true,
+            "active": false,
             "hasCertificate": true,
-            "hasApiKey": false,
-            "proximoNumeroNfse": 7988,
-            "createdAt": "1960-02-08T10:07:29.949Z"
+            "hasApiKey": true,
+            "proximoNumeroNfse": 4777,
+            "createdAt": "2009-12-20T17:40:28.747Z"
           }
         ],
         "pagination": {
-          "page": 9308,
-          "limit": 35,
-          "total": 6221
+          "page": 3904,
+          "limit": 17,
+          "total": 5788
         }
       }
 order: 1000

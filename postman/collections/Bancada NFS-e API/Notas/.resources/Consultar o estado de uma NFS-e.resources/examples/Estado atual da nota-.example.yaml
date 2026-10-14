@@ -44,24 +44,24 @@ response:
     content: |-
       {
         "invoiceId": "inv_",
-        "status": "cancel_queued",
+        "status": "processing",
         "numeroNfse": "000001",
         "numero": "string",
         "serie": "string",
         "chNFSe": "ESTUDO-1-000001",
-        "emittedAt": "2016-09-29T07:06:13.522Z",
+        "emittedAt": "1968-06-12T11:04:52.645Z",
         "ambiente": "string",
         "aviso": "string",
-        "pdfUrl": "https://HK.linqLKVZq3ULMRSMR3j9IBiAq3jhlsv-u9sB7dhZU.6zfKrZsgKZG9-qQVtVO5G1eSANk",
-        "xmlUrl": "http://cbTgyUX.curO++WCwZMgG2VGx5HXuskNuue5jxGrkyOPvu31jUh",
-        "documentsCached": true,
-        "errorCode": "E001",
+        "pdfUrl": "https://VopOSSvXxNLSHFAHoZBcPmaDiMb.obooHlItVFxOc82",
+        "xmlUrl": "https://isyPWUipEFpAIjjpy.shtSVmwHuA+S5HasVADPnhud",
+        "documentsCached": false,
+        "errorCode": "E002",
         "errorMessage": "string",
-        "cancelledAt": "1990-06-04T20:11:24.959Z",
-        "cancelXmlUrl": "https://doeGxjOtUxsyowLZHGq.pvaA9bXpKEN5ozV0g",
+        "cancelledAt": "1979-04-15T21:10:11.816Z",
+        "cancelXmlUrl": "https://UOGSSLoJtO.lhxsazV8G-eA5CJ-PvECdpuAr7jln8aTOCoN3feAc.iTvTqDCut,CV",
         "cancelamentoRecusado": "string",
         "cenario": "sucesso",
-        "origemCenario": "sorteado",
-        "conclusaoPrevista": "1964-02-06T18:53:13.773Z"
+        "origemCenario": "forcado",
+        "conclusaoPrevista": "1986-10-03T18:33:25.197Z"
       }
 order: 1000

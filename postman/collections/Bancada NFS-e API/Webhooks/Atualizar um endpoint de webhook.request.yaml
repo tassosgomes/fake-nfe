@@ -22,6 +22,12 @@ body:
     {
       "active": false
     }
+auth:
+  type: apikey
+  credentials:
+    key: x-api-key
+    value: "{{apiKey}}"
+    in: header
 settings: {}
 examples: ./.resources/Atualizar um endpoint de webhook.resources/examples
 order: 3000
