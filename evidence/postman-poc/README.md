@@ -10,7 +10,7 @@ Registros reproduzíveis da POC descrita no pacote de planejamento `postman-ee/d
 | [`FNFE-003-native-git.md`](FNFE-003-native-git.md) | FNFE-003 — bootstrap Native Git e primeiro push | concluída |
 | [`FNFE-004-005-collections.md`](FNFE-004-005-collections.md) | FNFE-004 / FNFE-005 — Collections e E2E (10 execuções) | concluída |
 | [`FNFE-006-governance.md`](FNFE-006-governance.md) | FNFE-006 — ruleset, exceções e mutações | concluída |
-| [`FNFE-007-ci.md`](FNFE-007-ci.md) | FNFE-007 — GitHub Actions de PR e experimento negativo | PR concluído; publicação em `main` pendente |
+| [`FNFE-007-ci.md`](FNFE-007-ci.md) | FNFE-007 — GitHub Actions de PR, experimento negativo e publicação em `main` | concluída |
 
 ## Regras
 
