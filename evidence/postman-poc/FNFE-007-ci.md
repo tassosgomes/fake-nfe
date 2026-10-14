@@ -19,6 +19,19 @@ Dispara em `pull_request` quando mudam contrato, governança, Collections, códi
 
 Nenhum passo reporta ao Postman Cloud (`--no-report-events`); a publicação fica para o workflow de `main`.
 
+## Workflow `.github/workflows/postman-publish.yml` (após merge em `main`)
+
+Um job, só no repositório de origem, um por vez (`concurrency` sem cancelamento):
+
+1. login com `POSTMAN_API_KEY`;
+2. os mesmos gates do PR, agora com `--report-events` (lint de sintaxe e de governança, Collection de fluxos com `POSTMAN_REPORT_EVENTS=1`), mais `npm test`;
+3. `postman workspace diff` como prévia e `postman workspace push --yes` com a estratégia padrão (cria e atualiza, nunca apaga);
+4. se o push gravou IDs novos em `.postman/resources.yaml` (entidade criada por um PR), commita o manifest de volta em `main` como `github-actions[bot]`. Sem isso, o push seguinte criaria uma duplicata na cloud.
+
+O contrato de origem não é alterado: o push só lê `contracts/openapi.yaml`.
+
+Validação: `actionlint` sem avisos. A primeira execução real acontece no merge do PR #2.
+
 ## Execuções no PR #2
 
 | Run | Commit | Contrato | Testes | E2E | Motivo |
@@ -67,4 +80,4 @@ FNFE-007:
 - [x] PR inválida é bloqueada.
 - [x] PR válida passa.
 - [x] Segredo não aparece nos logs.
-- [ ] Merge publica sem modificar o contrato de origem — workflow de `main` (`postman-publish.yml`) ainda não criado.
+- [ ] Merge publica sem modificar o contrato de origem — workflow criado; validar na primeira execução após o merge do PR #2.
