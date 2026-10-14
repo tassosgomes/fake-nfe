@@ -107,7 +107,7 @@ jobs:
           # Sessão própria: o next-server é neto do npm, e o cleanup encerra o grupo inteiro.
           setsid nohup npm start -- -p 3000 > data/server.log 2>&1 &
           echo $! > data/server.pid
-          for attempt in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             if curl -fsS http://localhost:3000/api/v1/health > /dev/null; then
               echo "Bancada respondeu ao health check."
               exit 0
