@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "seed:poc": "tsx scripts/seed-poc.ts",
     "postman:e2e": "bash scripts/postman-e2e.sh",
-    "lint:contract": "postman spec lint contracts/openapi.yaml --ruleset governance/openapi.spectral.yaml --fail-severity error --no-report-events"
+    "lint:contract": "postman spec lint contracts/openapi.yaml --issueType syntax --fail-severity warning --no-report-events && postman spec lint contracts/openapi.yaml --ruleset governance/openapi.spectral.yaml --fail-severity error --no-report-events"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

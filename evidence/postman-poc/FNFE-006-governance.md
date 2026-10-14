@@ -37,7 +37,12 @@ A parte "PR quebrada / PR corrigida" depende do CI e fica na FNFE-007.
 | `fnfe-exception-allowed-rule` | error | POC | — |
 | `fnfe-exception-has-reason` | error | POC | — |
 
-Unicidade de `operationId` (pedida no plano) não tem função Spectral nativa e o Postman não aceita funções customizadas nem `extends: spectral:oas`, onde ela mora. Fica coberta pela checagem estrutural do próprio CLI — a confirmar com uma mutação na FNFE-007.
+Unicidade de `operationId` (pedida no plano) não tem função Spectral nativa, e o Postman não aceita funções customizadas nem `extends: spectral:oas`, onde ela mora. O próprio CLI detecta a duplicação, mas como **WARNING de sintaxe** (`Every operation must have unique "operationId".`), que não bloqueia com `--fail-severity error`. Por isso `npm run lint:contract` roda dois passos:
+
+1. `postman spec lint … --issueType syntax --fail-severity warning` — estrutura; qualquer aviso bloqueia (contrato atual: 0 avisos);
+2. `postman spec lint … --ruleset governance/openapi.spectral.yaml --fail-severity error` — governança.
+
+Mutação: `operationId` de `/cancelar` trocado para `emitirNfse` → passo 1 sai com exit 1.
 
 ### Exceções no contrato
 
@@ -93,6 +98,7 @@ Toda saída indica arquivo, linha, caminho JSON, severidade e mensagem.
 6. **Filtros JSONPath com `@property` e acesso a extensões `x-` funcionam**, o que permitiu as exceções declaradas no contrato.
 7. **`postman spec sync collection` sorteia de novo os valores de exemplo a cada execução.** Uma mudança de 37 linhas no contrato gerou 132 arquivos alterados na Collection de referência. Impede um check de "Collection em dia" no CI e polui o PR. Mitigação: exemplos explícitos no contrato.
 8. O sync acrescentou `auth` explícito nas 11 operações que passaram a declarar `security`.
+9. **`operationId` duplicado é WARNING de sintaxe**, não erro; precisa de um passo de lint só de sintaxe com `--fail-severity warning`.
 
 ## Pendências para o ENT-001 (Governance Groups)
 
@@ -102,7 +108,7 @@ Toda saída indica arquivo, linha, caminho JSON, severidade e mensagem.
 
 ## Gate FNFE-006
 
-- [x] Regras do plano implementadas com a severidade pedida (unicidade de `operationId` a confirmar na FNFE-007).
+- [x] Regras do plano implementadas com a severidade pedida (unicidade de `operationId` via passo de sintaxe).
 - [x] Mensagem identifica arquivo, regra e severidade.
 - [x] Falha reproduzida localmente (remoção de `operationId`) e contrato corrigido passando.
 - [ ] Resultado local e CI equivalentes — FNFE-007.
